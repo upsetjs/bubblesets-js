@@ -1,0 +1,21 @@
+{
+  "name": "bubblesets-js",
+  "version": "1.0.0",
+  "description": "A JavaScript implementation of Bubble Sets.",
+  "main": "index.js",
+  "typings": "typings/index.d.ts",
+  "scripts": {
+    "build": "cat _header.js bubblesets.js _footer.js > index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sgratzl/bubblesets-js.git"
+  },
+  "author": "Josua Krause",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sgratzl/bubblesets-js/issues"
+  },
+  "homepage": "https://github.com/sgratzl/bubblesets-js#readme"
+}
