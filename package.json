@@ -8,6 +8,10 @@
     "build": "cat _header.js bubblesets.js _footer.js > index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "files": [
+    "index.js",
+    "typings"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sgratzl/bubblesets-js.git"
