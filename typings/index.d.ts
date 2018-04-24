@@ -69,8 +69,8 @@ export interface ITransformer {
   apply(path: PointPath): PointPath;
 }
 
-export interface PointPath {
-  new(points?: IPoint[]): PointPath;
+export class PointPath {
+  constructor(points?: IPoint[]): PointPath;
 
   closed(): boolean;
 
@@ -97,20 +97,22 @@ export interface PointPath {
   toString(): string;
 }
 
-export interface ShapeSimplifier extends ITransformer {
-  new(tolerance: number): ShapeSimplifier;
+export class ShapeSimplifier implements ITransformer {
+  constructor(tolerance: number): ShapeSimplifier;
 
   tolerance(): number;
 
   tolerance(value: number): void;
 
   isDisabled(): boolean;
+
+  apply(path: PointPath): PointPath;
 }
 
-export interface BSplineShapeGenerator extends ITransformer {
-  new(): BSplineShapeGenerator;
-
+export class BSplineShapeGenerator implements ITransformer {
   granularity(): number;
 
   granularity(value: number): void;
+
+  apply(path: PointPath): PointPath;
 }
