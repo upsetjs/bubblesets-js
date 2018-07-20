@@ -2,24 +2,36 @@
   "name": "bubblesets-js",
   "version": "1.0.0",
   "description": "A JavaScript implementation of Bubble Sets.",
-  "main": "index.js",
-  "typings": "typings/index.d.ts",
-  "scripts": {
-    "build": "cat _header.js bubblesets.js _footer.js > index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "files": [
-    "index.js",
-    "typings"
+  "author": "Josua Krause",
+  "contributors": [
+    {
+      "name": "Samuel Gratzl",
+      "email": "samuel_gratzl@gmx.at"
+    }
   ],
+  "homepage": "https://github.com/sgratzl/bubblesets-js#readme",
+  "license": "ISC",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/sgratzl/bubblesets-js.git"
   },
-  "author": "Josua Krause",
-  "license": "ISC",
   "bugs": {
     "url": "https://github.com/sgratzl/bubblesets-js/issues"
   },
-  "homepage": "https://github.com/sgratzl/bubblesets-js#readme"
+  "main": "index.js",
+  "types": "typings/index.d.ts",
+  "files": [
+    "index.js",
+    "typings"
+  ],
+  "scripts": {
+    "build": "cat _header.js bubblesets.js _footer.js > index.js",
+    "test": "echo \"Error: no test specified\"",
+    "preversion": "npm test",
+    "prepack": "npm run build",
+    "release:major": "npm version major && npm publish && git push --follow-tags",
+    "release:minor": "npm version minor && npm publish && git push --follow-tags",
+    "release:patch": "npm version patch && npm publish && git push --follow-tags",
+    "release:pre": "npm version prerelease && npm publish --tag=next && git push --follow-tags"
+  }
 }
