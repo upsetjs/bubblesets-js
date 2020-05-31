@@ -1,3 +1,19 @@
-/.DS_Store
-node_modules
-/index.js
+# Logs
+logs
+*.log
+npm-debug.log*
+
+/coverage
+/node_modules
+.npm
+/.yarnrc.yml
+/.yarn
+/.pnp.js
+
+# Build files
+/.tmp
+/dist
+
+*.tgz
+/.vscode/pnpify
+/docs

@@ -1,40 +1,47 @@
-BubbleSets for JavaScript
-=========================
+# BubbleSets for JavaScript
 
-A JavaScript implementation of Christopher Collins' [bubble sets](http://vialab.science.uoit.ca/portfolio/bubblesets)
+[![NPM Package][npm-image]][npm-url] [![Github Actions][github-actions-image]][github-actions-url]
+
+Fork of http://github.com/josuakrause/bubblesets-js/ - a JavaScript implementation of Christopher Collins' [bubble sets](http://vialab.science.uoit.ca/portfolio/bubblesets)
 without the use of external libraries. A Java implementation can be found [here](https://github.com/JosuaKrause/Bubble-Sets).
 
-[![Bubble Sets in action!](teaser.png)](http://josuakrause.github.io/bubblesets-js/)
+## Install
 
-Usage:
-
-```html
-<script src="bubblesets.js" charset="utf-8"></script>
+```sh
+npm install --save bubblesets-js
 ```
 
-and
+## Usage
 
-```javascript
-var pad = 5;
-var bubbles = new BubbleSet();
-// bubbles can be reused for subsequent runs or different sets of rectangles
-var list = bubbles.createOutline(
-  BubbleSet.addPadding(rectangles, pad),
-  BubbleSet.addPadding(otherRectangles, pad),
-  null /* lines */
-);
-// rectangles needs to be a list of objects of the form { x: 0, y: 0, width: 0, height: 0 }
-// lines needs to be a list of objects of the form { x1: 0, x2: 0, y1: 0, y2: 0 }
-// lines can be null to infer lines between rectangles automatically
-var outline = new PointPath(list).transform([
-  new ShapeSimplifier(0.0),
-  new BSplineShapeGenerator(),
-  new ShapeSimplifier(0.0),
-]);
-// outline is a path that can be used for the attribute d of a SVG path element
+see [Samples](https://github.com/sgratzl/bubblesets-js/tree/master/samples) on Github
+
+or at this [![Open in CodePen][codepen]](https://codepen.io/sgratzl/pen/TODO)
+
+## Development Environment
+
+```sh
+npm i -g yarn
+yarn set version 2
+cat .yarnrc_patch.yml >> .yarnrc.yml
+yarn
+yarn pnpify --sdk
 ```
 
-See also the [demo](http://josuakrause.github.io/bubblesets-js/) (add rectangles by clicking with the left or right mouse button), a more advanced [example](http://josuakrause.github.io/bubblesets-js/cliques.html), and the [benchmark](http://josuakrause.github.io/bubblesets-js/bench.html).
+### Common commands
 
-This implementation is based on the Java code originally written by Christopher Collins.
-If you're missing a feature from the Java version or find a bug please open an [issue](https://github.com/JosuaKrause/bubblesets-js/issues/new). [Pull requests](https://github.com/JosuaKrause/bubblesets-js/compare) are also welcome.
+```sh
+yarn compile
+yarn test
+yarn lint
+yarn fix
+yarn build
+yarn docs
+yarn release
+yarn release:pre
+```
+
+[npm-image]: https://badge.fury.io/js/bubblesets-js.svg
+[npm-url]: https://npmjs.org/package/sgratzl/bubblesets-js
+[github-actions-image]: https://github.com/sgratzl/bubblesets-js/workflows/nodeci/badge.svg
+[github-actions-url]: https://github.com/sgratzl/bubblesets-js/actions
+[codepen]: https://img.shields.io/badge/CodePen-open-blue?logo=codepen
