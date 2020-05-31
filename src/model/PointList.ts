@@ -1,4 +1,5 @@
 import { Point } from './Point';
+import { PointPath } from '../PointPath';
 
 export class PointList {
   private count = 0;
@@ -21,8 +22,8 @@ export class PointList {
     return o != null && o.x === p.x && o.y === p.y;
   }
 
-  list() {
-    return this.arr.slice(0, this.count).map((p) => p.p);
+  path() {
+    return new PointPath(this.arr.slice(0, this.count).map((p) => p.p));
   }
 
   clear() {

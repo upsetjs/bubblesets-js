@@ -28,14 +28,14 @@ class State {
     const e = this.endPoint();
     return linePtSegDistSq(s[0], s[1], e[0], e[1], p[0], p[1]);
   }
-  canTakeNext(tsqr: number) {
+  canTakeNext(toleranceSquared: number) {
     if (!this.validEnd()) {
       return false;
     }
     let ok = true;
     this.advanceEnd();
     for (let ix = this.start + 1; ix < this.end; ix += 1) {
-      if (this.lineDstSqr(ix) > tsqr) {
+      if (this.lineDstSqr(ix) > toleranceSquared) {
         ok = false;
         break;
       }

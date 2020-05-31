@@ -39,4 +39,8 @@ export class PointPath {
     }
     return path;
   }
+
+  apply(transformer: (path: PointPath) => PointPath) {
+    return transformer(this);
+  }
 }

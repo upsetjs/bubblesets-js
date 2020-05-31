@@ -1,10 +1,11 @@
-import { Rectangle } from '../model/Rectangle';
-import { Intersection, EState } from '../model/Intersection';
-import { Point } from '../model/Point';
-import { Area } from '../model/Area';
-import { Line } from '../model/Line';
-import { PointList } from '../model/PointList';
-import { marchingSquares } from '../model/MarchingSquares';
+import { Rectangle } from './model/Rectangle';
+import { Intersection, EState } from './model/Intersection';
+import { Point } from './model/Point';
+import { Area } from './model/Area';
+import { Line } from './model/Line';
+import { PointList } from './model/PointList';
+import { marchingSquares } from './model/MarchingSquares';
+import { PointPath } from './PointPath';
 
 export class BubbleSet {
   maxRoutingIterations = BubbleSet.DEFAULT_MAX_ROUTING_ITERATIONS;
@@ -21,7 +22,7 @@ export class BubbleSet {
 
   createOutline(memberItems: Rectangle[], nonMembers: Rectangle[], edges: Line[] = []) {
     if (memberItems.length === 0) {
-      return [];
+      return new PointPath([]);
     }
 
     let threshold = 1;
@@ -179,10 +180,10 @@ export class BubbleSet {
     const xCorner = activeRegion.x;
     const yCorner = activeRegion.y;
 
-    const fhull = new PointList(size);
+    const finalHull = new PointList(size);
     // copy hull values
     for (let i = 0, j = 0; j < size; j += 1, i += thisSkip) {
-      fhull.add(new Point(surface.get(i).x + xCorner, surface.get(i).y + yCorner));
+      finalHull.add(new Point(surface.get(i).x + xCorner, surface.get(i).y + yCorner));
     }
 
     // if (!this.debug) {
@@ -191,7 +192,7 @@ export class BubbleSet {
     //   potentialArea = null;
     // }
 
-    return fhull.list();
+    return finalHull.path();
   }
 
   // debug = false;
