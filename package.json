@@ -72,5 +72,9 @@
     "prepare": "tsdx build",
     "release": "release-it --disable-metrics --npm.skipChecks",
     "release:pre": "release-it --disable-metrics --npm.skipChecks --preRelease=alpha --npm.tag=next"
+  },
+  "dependencies": {
+    "@types/d3-contour": "^1.3.0",
+    "d3-contour": "^1.3.2"
   }
 }

@@ -1563,10 +1563,12 @@ __metadata:
   resolution: "@sgratzl/bubblesets-js@workspace:."
   dependencies:
     "@rollup/plugin-commonjs": ^12.0.0
+    "@types/d3-contour": ^1.3.0
     "@types/jest": ^25.2.3
     "@typescript-eslint/eslint-plugin": ^3.0.2
     "@typescript-eslint/parser": ^3.0.2
     "@yarnpkg/pnpify": ^2.0.0-rc.22
+    d3-contour: ^1.3.2
     eslint: ^7.1.0
     eslint-config-prettier: ^6.11.0
     eslint-config-react-app: ^5.2.1
@@ -1682,6 +1684,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/d3-array@npm:*":
+  version: 2.0.0
+  resolution: "@types/d3-array@npm:2.0.0"
+  checksum: 3/5772d8c33e94c7a9f16bd81d7db18ebdfc979e054b0c4b74143e420ae72c163ad78863dd195ce3f3a843d3e52d22fc28809c652dbc2bb700c19aa45d33d29dca
+  languageName: node
+  linkType: hard
+
+"@types/d3-contour@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "@types/d3-contour@npm:1.3.0"
+  dependencies:
+    "@types/d3-array": "*"
+    "@types/geojson": "*"
+  checksum: 3/89137e511a03cd11b725eb1b6b798e093640f87c295dc5f52d6061dc08baf25d6e091b867ff267af0fc16f41b8db572f09fa75d44b9753b0be21e891b3a2440a
+  languageName: node
+  linkType: hard
+
 "@types/emscripten@npm:^1.38.0":
   version: 1.39.4
   resolution: "@types/emscripten@npm:1.39.4"
@@ -1714,6 +1733,13 @@ __metadata:
   version: 3.0.0
   resolution: "@types/events@npm:3.0.0"
   checksum: 3/1407d79d6d5291caa89f27ef0f180eb133bc5a12f11886bd68f9ef9cffb962a575571d1b4d02d30a7329fe9b85d29b7c10543ed6dc516ad20f9a1e89c1e9c9b8
+  languageName: node
+  linkType: hard
+
+"@types/geojson@npm:*":
+  version: 7946.0.7
+  resolution: "@types/geojson@npm:7946.0.7"
+  checksum: 3/b0a614f58a169069d9978af24c4b816bc7140a722829d8786ad1ff22d8362b429c56170326c836ce661a0307f8e35820a055966c2eedc21b62671a56c472263e
   languageName: node
   linkType: hard
 
@@ -3381,6 +3407,22 @@ __metadata:
   dependencies:
     cssom: 0.3.x
   checksum: 3/5c138c9b0761a2826929ba1af06d541968c8ce2e147bc88719a9219554dbc2a7e48d2507936b4837c4cd75c07fa4988e51c6fe96dd96a45cd404c8a0012a46d3
+  languageName: node
+  linkType: hard
+
+"d3-array@npm:^1.1.1":
+  version: 1.2.4
+  resolution: "d3-array@npm:1.2.4"
+  checksum: 3/ab114c72ccdcb3f53807574c003816ad6ac65c2c2db2b17b18e2678f1141881dfa0ddab60af63d73e428c826e4580b6cb9e93cb776c777c79fec9f75057d8fbd
+  languageName: node
+  linkType: hard
+
+"d3-contour@npm:^1.3.2":
+  version: 1.3.2
+  resolution: "d3-contour@npm:1.3.2"
+  dependencies:
+    d3-array: ^1.1.1
+  checksum: 3/497c87ad92dfc7af29f63a3180fc94986cbe83b5d4a3374fc3a73608d9a5815af03a8893126b38c2f92a1a796d4f364b9c551e52ff929bd70935a37e2fac7013
   languageName: node
   linkType: hard
 
