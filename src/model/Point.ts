@@ -16,4 +16,8 @@ export class Point {
   static doublePointsEqual(x1: number, y1: number, x2: number, y2: number, delta: number) {
     return Point.ptsDistanceSq(x1, y1, x2, y2) < delta * delta;
   }
+
+  toString() {
+    return `${this.x}x${this.y}`;
+  }
 }

@@ -20,6 +20,10 @@ export class Rectangle {
     return this.y + this.height / 2;
   }
 
+  clone() {
+    return new Rectangle(this.x, this.y, this.width, this.height);
+  }
+
   cmp(that: Rectangle) {
     return this.centroidDistance - that.centroidDistance;
   }

@@ -3,6 +3,8 @@ import { Intersection, EState } from '../model/Intersection';
 import { Point } from '../model/Point';
 import { Area } from '../model/Area';
 import { Line } from '../model/Line';
+import { PointList } from '../model/PointList';
+import { marchingSquares } from '../model/MarchingSquares';
 
 export class BubbleSet {
   maxRoutingIterations = BubbleSet.DEFAULT_MAX_ROUTING_ITERATIONS;
@@ -17,154 +19,200 @@ export class BubbleSet {
 
   constructor() {}
 
-  createOutline(members: Rectangle[], nonmem: Rectangle[], edges: Line[]) {
-    if (!members.length) return [];
+  createOutline(memberItems: Rectangle[], nonMembers: Rectangle[], edges: Line[] = []) {
+    if (memberItems.length === 0) {
+      return [];
+    }
 
     let threshold = 1;
     let nodeInfluenceFactor = 1;
     let edgeInfluenceFactor = 1;
     let negativeNodeInfluenceFactor = -0.8;
-    let activeRegion = null;
-    let virtualEdges = [];
     let potentialArea: Area | null = null;
 
-    let lastThreshold = Number.NaN;
-
-    var memberItems = members.map(function (m) {
-      return new Rectangle(m);
-    });
-    var nonMembers = nonmem.map(function (m) {
-      return new Rectangle(m);
+    let activeRegion = memberItems[0].clone();
+    memberItems.forEach((m) => {
+      activeRegion.add(m);
     });
 
     // calculate and store virtual edges
-    calculateVirtualEdges(memberItems, nonMembers);
+    const virtualEdges = this.calculateVirtualEdges(memberItems, nonMembers);
 
-    edges &&
-      edges.forEach(function (e) {
-        virtualEdges.push(new Line(e.x1, e.y1, e.x2, e.y2));
-      });
+    edges.forEach((e) => {
+      virtualEdges.push(e);
+    });
+    virtualEdges.forEach((l) => {
+      activeRegion.add(l.asRect());
+    });
 
-    activeRegion = null;
-    memberItems.forEach(function (m) {
-      if (!activeRegion) {
-        activeRegion = new Rectangle(m.rect());
-      } else {
-        activeRegion.add(m);
+    const padding = Math.max(this.edgeR1, this.nodeR1) + this.morphBuffer;
+    activeRegion = addPadding(activeRegion, padding);
+
+    potentialArea = new Area(
+      Math.ceil(activeRegion.width / this.pixelGroup),
+      Math.ceil(activeRegion.height / this.pixelGroup)
+    );
+
+    const estLength = (Math.floor(activeRegion.width) + Math.floor(activeRegion.height)) * 2;
+    const surface = new PointList(estLength);
+
+    let tempThreshold = threshold;
+    let tempNegativeNodeInfluenceFactor = negativeNodeInfluenceFactor;
+    let tempNodeInfluenceFactor = nodeInfluenceFactor;
+    let tempEdgeInfluenceFactor = edgeInfluenceFactor;
+
+    let iterations = 0;
+
+    const fillPotentialArea = (members: Rectangle[], nonMembers: Rectangle[], potentialArea: Area) => {
+      let influenceFactor = 0;
+      // add all positive energy (included items) first, as negative energy
+      // (morphing) requires all positives to be already set
+      if (nodeInfluenceFactor) {
+        members.forEach((item) => {
+          // add node energy
+          influenceFactor = nodeInfluenceFactor;
+          const nodeRDiff = this.nodeR0 - this.nodeR1;
+          // using inverse a for numerical stability
+          const inva = nodeRDiff * nodeRDiff;
+          calculateRectangleInfluence(
+            activeRegion,
+            this.pixelGroup,
+            potentialArea,
+            influenceFactor / inva,
+            this.nodeR1,
+            item
+          );
+        }); // end processing node items of this aggregate
+      } // end processing positive node energy
+
+      if (edgeInfluenceFactor) {
+        // add the influence of all the virtual edges
+        influenceFactor = edgeInfluenceFactor;
+        const inva = (this.edgeR0 - this.edgeR1) * (this.edgeR0 - this.edgeR1);
+
+        if (virtualEdges.length > 0) {
+          calculateLinesInfluence(
+            this.pixelGroup,
+            potentialArea,
+            influenceFactor / inva,
+            this.edgeR1,
+            virtualEdges,
+            activeRegion
+          );
+        }
       }
-    });
 
-    virtualEdges.forEach(function (l) {
-      activeRegion.add(l.rect());
-    });
-
-    activeRegion.rect({
-      x: activeRegion.x - Math.max(edgeR1, nodeR1) - morphBuffer,
-      y: activeRegion.y - Math.max(edgeR1, nodeR1) - morphBuffer,
-      width: activeRegion.width + 2 * Math.max(edgeR1, nodeR1) + 2 * morphBuffer,
-      height: activeRegion.height + 2 * Math.max(edgeR1, nodeR1) + 2 * morphBuffer,
-    });
-
-    potentialArea = new Area(Math.ceil(activeRegion.width / pixelGroup), Math.ceil(activeRegion.height / pixelGroup));
-
-    var estLength = (Math.floor(activeRegion.width) + Math.floor(activeRegion.height)) * 2;
-    var surface = new PointList(estLength);
-
-    var tempThreshold = threshold;
-    var tempNegativeNodeInfluenceFactor = negativeNodeInfluenceFactor;
-    var tempNodeInfluenceFactor = nodeInfluenceFactor;
-    var tempEdgeInfluenceFactor = edgeInfluenceFactor;
-
-    var iterations = 0;
+      // calculate negative energy contribution for all other visible items within bounds
+      if (negativeNodeInfluenceFactor) {
+        nonMembers.forEach((item) => {
+          // if item is within influence bounds, add potential
+          if (activeRegion.intersects(item)) {
+            // subtract influence
+            influenceFactor = negativeNodeInfluenceFactor;
+            var nodeRDiff = this.nodeR0 - this.nodeR1;
+            // using inverse a for numerical stability
+            var inva = nodeRDiff * nodeRDiff;
+            calculateRectangleNegativeInfluence(
+              activeRegion,
+              this.pixelGroup,
+              potentialArea,
+              influenceFactor / inva,
+              this.nodeR1,
+              item
+            );
+          }
+        });
+      }
+    };
 
     // add the aggregate and all it's members and virtual edges
-    fillPotentialArea(activeRegion, memberItems, nonMembers, potentialArea);
+    fillPotentialArea(memberItems, nonMembers, potentialArea);
 
     // try to march, check if surface contains all items
     while (
-      !calculateContour(surface, activeRegion, memberItems, nonMembers, potentialArea) &&
-      iterations < maxMarchingIterations
+      !this.calculateContour(surface, activeRegion, memberItems, nonMembers, potentialArea, threshold) &&
+      iterations < this.maxMarchingIterations
     ) {
       surface.clear();
       iterations += 1;
 
       // reduce negative influences first; this will allow the surface to
       // pass without making it fatter all around (which raising the threshold does)
-      if (iterations <= maxMarchingIterations * 0.5) {
+      if (iterations <= this.maxMarchingIterations * 0.5) {
         threshold *= 0.95;
         nodeInfluenceFactor *= 1.2;
         edgeInfluenceFactor *= 1.2;
-        fillPotentialArea(activeRegion, memberItems, nonMembers, potentialArea);
+        fillPotentialArea(memberItems, nonMembers, potentialArea);
       }
 
       // after half the iterations, start increasing positive energy and lowering the threshold
-      if (iterations > maxMarchingIterations * 0.5) {
+      if (iterations > this.maxMarchingIterations * 0.5) {
         if (negativeNodeInfluenceFactor != 0) {
           threshold *= 0.95;
           negativeNodeInfluenceFactor *= 0.8;
-          fillPotentialArea(activeRegion, memberItems, nonMembers, potentialArea);
+          fillPotentialArea(memberItems, nonMembers, potentialArea);
         }
       }
     }
 
-    lastThreshold = threshold;
+    // let lastThreshold = threshold;
     threshold = tempThreshold;
     negativeNodeInfluenceFactor = tempNegativeNodeInfluenceFactor;
     nodeInfluenceFactor = tempNodeInfluenceFactor;
     edgeInfluenceFactor = tempEdgeInfluenceFactor;
 
     // start with global SKIP value, but decrease skip amount if there aren't enough points in the surface
-    var thisSkip = skip;
+    let thisSkip = this.skip;
     // prepare viz attribute array
-    var size = surface.size();
+    let size = surface.length;
 
     if (thisSkip > 1) {
-      size = Math.floor(surface.size() / thisSkip);
+      size = Math.floor(surface.length / thisSkip);
       // if we reduced too much (fewer than three points in reduced surface) reduce skip and try again
       while (size < 3 && thisSkip > 1) {
         thisSkip -= 1;
-        size = Math.floor(surface.size() / thisSkip);
+        size = Math.floor(surface.length / thisSkip);
       }
     }
 
     // add the offset of the active area to the coordinates
-    var xcorner = activeRegion.x;
-    var ycorner = activeRegion.y;
+    const xCorner = activeRegion.x;
+    const yCorner = activeRegion.y;
 
-    var fhull = new PointList(size);
+    const fhull = new PointList(size);
     // copy hull values
-    for (var i = 0, j = 0; j < size; j += 1, i += thisSkip) {
-      fhull.add(new Point(surface.get(i).x + xcorner, surface.get(i).y + ycorner));
+    for (let i = 0, j = 0; j < size; j += 1, i += thisSkip) {
+      fhull.add(new Point(surface.get(i).x + xCorner, surface.get(i).y + yCorner));
     }
 
-    if (!debug) {
-      // getting rid of unused memory preventing a memory leak
-      activeRegion = null;
-      potentialArea = null;
-    }
+    // if (!this.debug) {
+    //   // getting rid of unused memory preventing a memory leak
+    //   activeRegion = null;
+    //   potentialArea = null;
+    // }
 
     return fhull.list();
   }
 
-  debug = false;
-  // call after createOutline
-  debugPotentialArea() {
-    debug || console.warn('debug mode should be activated');
-    var rects = [];
-    for (var x = 0; x < potentialArea.width; x += 1) {
-      for (var y = 0; y < potentialArea.height; y += 1) {
-        rects.push({
-          x: x * pixelGroup + Math.floor(activeRegion.x),
-          y: y * pixelGroup + Math.floor(activeRegion.y),
-          width: pixelGroup,
-          height: pixelGroup,
-          value: potentialArea.get(x, y),
-          threshold: lastThreshold,
-        });
-      }
-    }
-    return rects;
-  }
+  // debug = false;
+  // // call after createOutline
+  // debugPotentialArea() {
+  //   debug || console.warn('debug mode should be activated');
+  //   var rects = [];
+  //   for (var x = 0; x < potentialArea.width; x += 1) {
+  //     for (var y = 0; y < potentialArea.height; y += 1) {
+  //       rects.push({
+  //         x: x * pixelGroup + Math.floor(activeRegion.x),
+  //         y: y * pixelGroup + Math.floor(activeRegion.y),
+  //         width: pixelGroup,
+  //         height: pixelGroup,
+  //         value: potentialArea.get(x, y),
+  //         threshold: lastThreshold,
+  //       });
+  //     }
+  //   }
+  //   return rects;
+  // }
 
   static readonly DEFAULT_MAX_ROUTING_ITERATIONS = 100;
   static readonly DEFAULT_MAX_MARCHING_ITERATIONS = 20;
@@ -175,235 +223,175 @@ export class BubbleSet {
   static readonly DEFAULT_NODE_R1 = 50;
   static readonly DEFAULT_MORPH_BUFFER = BubbleSet.DEFAULT_NODE_R0;
   static readonly DEFAULT_SKIP = 8;
-}
 
-export function addPadding(rects: Rectangle[], radius: number) {
-  return rects.map((r) => new Rectangle(r.x - radius, r.y - radius, r.width + 2 * radius, r.height + 2 * radius));
-}
-
-function calculateContour(contour, bounds, members, nonMembers, potentialArea) {
-  // if no surface could be found stop
-  if (!new MarchingSquares(contour, potentialArea, pixelGroup, threshold).march()) return false;
-  return testContainment(contour, bounds, members, nonMembers)[0];
-}
-
-function testContainment(contour, bounds, members, nonMembers) {
-  // precise bounds checking
-  // copy hull values
-  var g = [];
-  var gbounds = null;
-
-  function contains(g, p) {
-    var line = null;
-    var first = null;
-    var crossings = 0;
-    g.forEach(function (cur) {
-      if (!line) {
-        line = new Line(cur.x, cur.y, cur.x, cur.y);
-        first = cur;
-        return;
-      }
-      line.x1(line.x2());
-      line.y1(line.y2());
-      line.x2(cur.x);
-      line.y2(cur.y);
-      if (line.cuts(p)) {
-        crossings += 1;
-      }
-    });
-    if (first) {
-      line.x1(line.x2());
-      line.y1(line.y2());
-      line.x2(first.x);
-      line.y2(first.y);
-      if (line.cuts(p)) {
-        crossings += 1;
-      }
+  calculateContour(
+    contour: PointList,
+    bounds: Rectangle,
+    members: Rectangle[],
+    nonMembers: Rectangle[],
+    potentialArea: Area,
+    threshold: number
+  ) {
+    // if no surface could be found stop
+    if (!marchingSquares(contour, potentialArea, this.pixelGroup, threshold)) {
+      return false;
     }
-    return crossings % 2 == 1;
+    return this.testContainment(contour, bounds, members, nonMembers)[0];
   }
 
-  // start with global SKIP value, but decrease skip amount if there
-  // aren't enough points in the surface
-  var thisSkip = skip;
-  // prepare viz attribute array
-  var size = contour.size();
-  if (thisSkip > 1) {
-    size = contour.size() / thisSkip;
-    // if we reduced too much (fewer than three points in reduced surface) reduce skip and try again
-    while (size < 3 && thisSkip > 1) {
-      thisSkip--;
-      size = contour.size() / thisSkip;
-    }
-  }
+  testContainment(contour: PointList, bounds: Rectangle, members: Rectangle[], nonMembers: Rectangle[]) {
+    // precise bounds checking
+    // copy hull values
+    const g: Point[] = [];
+    let gbounds: Rectangle | null = null;
 
-  var xcorner = bounds.x;
-  var ycorner = bounds.y;
-
-  // simulate the surface we will eventually draw, using straight segments (approximate, but fast)
-  for (var i = 0; i < size - 1; i += 1) {
-    var px = contour.get(i * thisSkip).x + xcorner;
-    var py = contour.get(i * thisSkip).y + ycorner;
-    var r = {
-      x: px,
-      y: py,
-      width: 0,
-      height: 0,
-    };
-    if (!gbounds) {
-      gbounds = new Rectangle(r);
-    } else {
-      gbounds.add(new Rectangle(r));
-    }
-    g.push(new Point(px, py));
-  }
-
-  var containsAll = true;
-  var containsExtra = false;
-  if (gbounds) {
-    members.forEach(function (item) {
-      var p = new Point(item.centerx, item.centery);
-      // check rough bounds
-      containsAll = containsAll && gbounds.contains(p);
-      // check precise bounds if rough passes
-      containsAll = containsAll && contains(g, p);
-    });
-    nonMembers.forEach(function (item) {
-      var p = new Point(item.centerx, item.centery);
-      // check rough bounds
-      if (gbounds.contains(p)) {
-        // check precise bounds if rough passes
-        if (contains(g, p)) {
-          containsExtra = true;
+    function contains(g: Point[], p: Point) {
+      let crossings = 0;
+      if (g.length === 0) {
+        return crossings % 2 == 1;
+      }
+      const first = g[0]!;
+      const line = new Line(first.x, first.y, first.x, first.y);
+      g.slice(1).forEach((cur) => {
+        line.x1 = line.x2;
+        line.y1 = line.y2;
+        line.x2 = cur.x;
+        line.y2 = cur.y;
+        if (line.cuts(p)) {
+          crossings += 1;
         }
+      });
+
+      line.x1 = line.x2;
+      line.y1 = line.y2;
+      line.x2 = first.x;
+      line.y2 = first.y;
+      if (line.cuts(p)) {
+        crossings += 1;
       }
-    });
-  }
-  return [containsAll, containsExtra];
-}
-
-function fillPotentialArea(activeArea, members, nonMembers, potentialArea) {
-  var influenceFactor = 0;
-  // add all positive energy (included items) first, as negative energy
-  // (morphing) requires all positives to be already set
-  if (nodeInfluenceFactor) {
-    members.forEach(function (item) {
-      // add node energy
-      influenceFactor = nodeInfluenceFactor;
-      var nodeRDiff = nodeR0 - nodeR1;
-      // using inverse a for numerical stability
-      var inva = nodeRDiff * nodeRDiff;
-      calculateRectangleInfluence(potentialArea, influenceFactor / inva, nodeR1, item);
-    }); // end processing node items of this aggregate
-  } // end processing positive node energy
-
-  if (edgeInfluenceFactor) {
-    // add the influence of all the virtual edges
-    influenceFactor = edgeInfluenceFactor;
-    var inva = (edgeR0 - edgeR1) * (edgeR0 - edgeR1);
-
-    if (virtualEdges.length > 0) {
-      calculateLinesInfluence(potentialArea, influenceFactor / inva, edgeR1, virtualEdges, activeArea);
+      return crossings % 2 == 1;
     }
-  }
 
-  // calculate negative energy contribution for all other visible items within bounds
-  if (negativeNodeInfluenceFactor) {
-    nonMembers.forEach(function (item) {
-      // if item is within influence bounds, add potential
-      if (activeArea.intersects(item)) {
-        // subtract influence
-        influenceFactor = negativeNodeInfluenceFactor;
-        var nodeRDiff = nodeR0 - nodeR1;
-        // using inverse a for numerical stability
-        var inva = nodeRDiff * nodeRDiff;
-        calculateRectangleNegativeInfluence(potentialArea, influenceFactor / inva, nodeR1, item);
+    // start with global SKIP value, but decrease skip amount if there
+    // aren't enough points in the surface
+    let thisSkip = this.skip;
+    // prepare viz attribute array
+    let size = contour.length;
+    if (thisSkip > 1) {
+      size = contour.length / thisSkip;
+      // if we reduced too much (fewer than three points in reduced surface) reduce skip and try again
+      while (size < 3 && thisSkip > 1) {
+        thisSkip--;
+        size = contour.length / thisSkip;
       }
-    });
-  }
-}
-
-function calculateCentroidDistances(items) {
-  var totalx = 0;
-  var totaly = 0;
-  var nodeCount = 0;
-  items.forEach(function (item) {
-    totalx += item.centerx;
-    totaly += item.centery;
-    nodeCount += 1;
-  });
-  totalx /= nodeCount;
-  totaly /= nodeCount;
-  items.forEach(function (item) {
-    var diffX = totalx - item.centerx;
-    var diffY = totaly - item.centery;
-    item.centroidDistance(Math.sqrt(diffX * diffX + diffY * diffY));
-  });
-}
-
-function calculateVirtualEdges(items, nonMembers) {
-  var visited = [];
-  virtualEdges = [];
-  calculateCentroidDistances(items);
-  items.sort(function (a, b) {
-    return a.cmp(b);
-  });
-
-  items.forEach(function (item) {
-    var lines = connectItem(nonMembers, item, visited);
-    lines.forEach(function (l) {
-      virtualEdges.push(l);
-    });
-    visited.push(item);
-  });
-}
-
-function connectItem(nonMembers: Rectangle[], item, visited) {
-  var scannedLines = [];
-  var linesToCheck = [];
-
-  var itemCenter = new Point(item.centerx, item.centery);
-  var closestNeighbour = null;
-  var minLengthSq = Number.POSITIVE_INFINITY;
-  // discover the nearest neighbour with minimal interference items
-  visited.forEach(function (neighbourItem) {
-    var nCenter = new Point(neighbourItem.centerx, neighbourItem.centery);
-    var distanceSq = itemCenter.distanceSq(nCenter);
-
-    var completeLine = new Line(itemCenter.x, itemCenter.y, nCenter.x, nCenter.y);
-    // augment distance by number of interfering items
-    var numberInterferenceItems = countInterferenceItems(nonMembers, completeLine);
-
-    // TODO is there a better function to consider interference in nearest-neighbour checking? This is hacky
-    if (distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1) < minLengthSq) {
-      closestNeighbour = neighbourItem;
-      minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
     }
-  });
 
-  // if there is a visited closest neighbour, add straight line between
-  // them to the positive energy to ensure connected clusters
-  if (closestNeighbour) {
-    var completeLine = new Line(itemCenter.x, itemCenter.y, closestNeighbour.centerx, closestNeighbour.centery);
+    let xcorner = bounds.x;
+    let ycorner = bounds.y;
+
+    // simulate the surface we will eventually draw, using straight segments (approximate, but fast)
+    for (let i = 0; i < size - 1; i += 1) {
+      const px = contour.get(i * thisSkip).x + xcorner;
+      const py = contour.get(i * thisSkip).y + ycorner;
+      const r = new Rectangle(px, py, 0, 0);
+      if (!gbounds) {
+        gbounds = r;
+      } else {
+        gbounds.add(r);
+      }
+      g.push(new Point(px, py));
+    }
+
+    let containsAll = true;
+    let containsExtra = false;
+
+    if (gbounds != null) {
+      members.forEach((item) => {
+        const p = new Point(item.cx, item.cy);
+        // check rough bounds
+        containsAll = containsAll && gbounds!.contains(p);
+        // check precise bounds if rough passes
+        containsAll = containsAll && contains(g, p);
+      });
+      nonMembers.forEach((item) => {
+        const p = new Point(item.cx, item.cy);
+        // check rough bounds
+        if (gbounds!.contains(p)) {
+          // check precise bounds if rough passes
+          if (contains(g, p)) {
+            containsExtra = true;
+          }
+        }
+      });
+    }
+    return [containsAll, containsExtra];
+  }
+
+  calculateVirtualEdges(items: Rectangle[], nonMembers: Rectangle[]) {
+    const visited: Rectangle[] = [];
+    const virtualEdges: Line[] = [];
+    calculateCentroidDistances(items);
+    items.sort((a, b) => a.cmp(b));
+
+    items.forEach((item) => {
+      const lines = this.connectItem(nonMembers, item, visited);
+      lines.forEach((l) => {
+        virtualEdges.push(l);
+      });
+      visited.push(item);
+    });
+    return virtualEdges;
+  }
+
+  connectItem(nonMembers: Rectangle[], item: Rectangle, visited: Rectangle[]) {
+    const scannedLines: Line[] = [];
+    const linesToCheck: Line[] = [];
+
+    let itemCenter = new Point(item.cx, item.cy);
+    let closestNeighbor: Rectangle | null = null;
+    let minLengthSq = Number.POSITIVE_INFINITY;
+    // discover the nearest neighbor with minimal interference items
+    for (const neighborItem of visited) {
+      const nCenter = new Point(neighborItem.cx, neighborItem.cy);
+      const distanceSq = itemCenter.distanceSq(nCenter);
+
+      const completeLine = new Line(itemCenter.x, itemCenter.y, nCenter.x, nCenter.y);
+      // augment distance by number of interfering items
+      const numberInterferenceItems = countInterferenceItems(nonMembers, completeLine);
+
+      // TODO is there a better function to consider interference in nearest-neighbor checking? This is hacky
+      if (distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1) < minLengthSq) {
+        closestNeighbor = neighborItem;
+        minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
+      }
+    }
+
+    // if there is a visited closest neighbor, add straight line between
+    // them to the positive energy to ensure connected clusters
+    if (closestNeighbor == null) {
+      return [];
+    }
+    const completeLine = new Line(itemCenter.x, itemCenter.y, closestNeighbor.cx, closestNeighbor.cy);
     // route the edge around intersecting nodes not in set
     linesToCheck.push(completeLine);
 
-    var hasIntersection = true;
-    var iterations = 0;
-    var intersections = [];
+    let hasIntersection = true;
+    let iterations = 0;
+    const intersections: Intersection[] = [];
     intersections.length = 4;
-    var numIntersections = 0;
-    while (hasIntersection && iterations < maxRoutingIterations) {
+    let numIntersections = 0;
+
+    while (hasIntersection && iterations < this.maxRoutingIterations) {
       hasIntersection = false;
-      while (!hasIntersection && linesToCheck.length) {
-        var line = linesToCheck.pop();
+      while (!hasIntersection && linesToCheck.length > 0) {
+        var line = linesToCheck.pop()!;
         // resolve intersections in order along edge
         var closestItem = getCenterItem(nonMembers, line);
         if (closestItem) {
           numIntersections = Intersection.testIntersection(line, closestItem, intersections);
           // 2 intersections = line passes through item
           if (numIntersections == 2) {
-            var tempMorphBuffer = morphBuffer;
+            var tempMorphBuffer = this.morphBuffer;
             var movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
             // test the movePoint already exists
             var foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
@@ -419,8 +407,8 @@ function connectItem(nonMembers: Rectangle[], item, visited) {
 
             if (movePoint && !foundFirst && !pointInside) {
               // add 2 rerouted lines to check
-              linesToCheck.push(new Line(line.x1(), line.y1(), movePoint.x, movePoint.y));
-              linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2(), line.y2()));
+              linesToCheck.push(new Line(line.x1, line.y1, movePoint.x, movePoint.y));
+              linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2, line.y2));
               // indicate intersection found
               hasIntersection = true;
             }
@@ -428,7 +416,7 @@ function connectItem(nonMembers: Rectangle[], item, visited) {
             // if we didn't find a valid point around the
             // first corner, try the second
             if (!hasIntersection) {
-              tempMorphBuffer = morphBuffer;
+              tempMorphBuffer = this.morphBuffer;
               movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
               var foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
               pointInside = isPointInsideNonMember(movePoint, nonMembers);
@@ -443,8 +431,8 @@ function connectItem(nonMembers: Rectangle[], item, visited) {
 
               if (movePoint && !foundSecond) {
                 // add 2 rerouted lines to check
-                linesToCheck.push(new Line(line.x1(), line.y1(), movePoint.x, movePoint.y));
-                linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2(), line.y2()));
+                linesToCheck.push(new Line(line.x1, line.y1, movePoint.x, movePoint.y));
+                linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2, line.y2));
                 // indicate intersection found
                 hasIntersection = true;
               }
@@ -462,18 +450,18 @@ function connectItem(nonMembers: Rectangle[], item, visited) {
 
     // finalize any that were not rerouted (due to running out of
     // iterations) or if we aren't morphing
-    while (linesToCheck.length) {
-      scannedLines.push(linesToCheck.pop());
+    while (linesToCheck.length > 0) {
+      scannedLines.push(linesToCheck.pop()!);
     }
 
     // try to merge consecutive lines if possible
-    while (scannedLines.length) {
-      var line1 = scannedLines.pop();
-      if (scannedLines.length) {
-        var line2 = scannedLines.pop();
-        var mergeLine = new Line(line1.x1(), line1.y1(), line2.x2(), line2.y2());
+    while (scannedLines.length > 0) {
+      const line1 = scannedLines.pop()!;
+      if (scannedLines.length > 0) {
+        const line2 = scannedLines.pop()!;
+        const mergeLine = new Line(line1.x1, line1.y1, line2.x2, line2.y2);
         // resolve intersections in order along edge
-        var closestItem = getCenterItem(nonMembers, mergeLine);
+        const closestItem = getCenterItem(nonMembers, mergeLine);
         // merge most recent line and previous line
         if (!closestItem) {
           scannedLines.push(mergeLine);
@@ -485,36 +473,49 @@ function connectItem(nonMembers: Rectangle[], item, visited) {
         linesToCheck.push(line1);
       }
     }
-    scannedLines = linesToCheck;
+    return linesToCheck;
   }
-  return scannedLines;
+}
+
+function calculateCentroidDistances(items: Rectangle[]) {
+  let totalX = 0;
+  let totalY = 0;
+  let nodeCount = 0;
+  items.forEach((item) => {
+    totalX += item.cx;
+    totalY += item.cy;
+    nodeCount += 1;
+  });
+  totalX /= nodeCount;
+  totalY /= nodeCount;
+  items.forEach((item) => {
+    const diffX = totalX - item.cx;
+    const diffY = totalY - item.cy;
+    item.centroidDistance = Math.sqrt(diffX * diffX + diffY * diffY);
+  });
 }
 
 function isPointInsideNonMember(point: Point, nonMembers: Rectangle[]) {
-  return nonMembers.some(function (testRectangle) {
-    return testRectangle.contains(point);
-  });
+  return nonMembers.some((testRectangle) => testRectangle.contains(point));
 }
 
 function pointExists(pointToCheck: Point, lines: Line[]) {
-  var found = false;
-  lines.forEach(function (checkEndPointsLine) {
-    if (found) return;
+  return lines.some((checkEndPointsLine) => {
     if (Point.doublePointsEqual(checkEndPointsLine.x1, checkEndPointsLine.y1, pointToCheck.x, pointToCheck.y, 1e-3)) {
-      found = true;
+      return true;
     }
     if (Point.doublePointsEqual(checkEndPointsLine.x2, checkEndPointsLine.y2, pointToCheck.x, pointToCheck.y, 1e-3)) {
-      found = true;
+      return true;
     }
+    return false;
   });
-  return found;
 }
 
-function getCenterItem(items, testLine: Line) {
-  var minDistance = Number.POSITIVE_INFINITY;
-  var closestItem = null;
+function getCenterItem(items: Rectangle[], testLine: Line) {
+  let minDistance = Number.POSITIVE_INFINITY;
+  let closestItem: Rectangle | null = null;
 
-  items.forEach(function (interferenceItem) {
+  items.forEach((interferenceItem) => {
     if (interferenceItem.intersectsLine(testLine)) {
       const distance = Intersection.fractionToLineCenter(interferenceItem, testLine);
       // find closest intersection
@@ -527,8 +528,8 @@ function getCenterItem(items, testLine: Line) {
   return closestItem;
 }
 
-function countInterferenceItems(interferenceItems: Intersection[], testLine: Line) {
-  return interferenceItems.reduce(function (count, interferenceItem) {
+function countInterferenceItems(interferenceItems: Rectangle[], testLine: Line) {
+  return interferenceItems.reduce((count, interferenceItem) => {
     if (interferenceItem.intersectsLine(testLine)) {
       if (Intersection.fractionToLineCenter(interferenceItem, testLine) >= 0) {
         return count + 1;
@@ -816,4 +817,8 @@ function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections:
     return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
   // top left
   return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+}
+
+export function addPadding(r: Rectangle, radius: number) {
+  return new Rectangle(r.x - radius, r.y - radius, r.width + 2 * radius, r.height + 2 * radius);
 }
