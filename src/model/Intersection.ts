@@ -44,12 +44,9 @@ export class Intersection {
   static fractionToLineCenter(bounds: Rectangle, line: Line) {
     let minDistance = Number.POSITIVE_INFINITY;
     let countIntersections = 0;
-    const intersectionPline = new Line(0.0, 0.0, 0.0, 0.0);
+
     function testLine(xa: number, ya: number, xb: number, yb: number) {
-      intersectionPline.x1 = xa;
-      intersectionPline.y1 = ya;
-      intersectionPline.x2 = xb;
-      intersectionPline.y2 = yb;
+      const intersectionPline = new Line(xa, ya, xb, yb);
       let testDistance = Intersection.fractionAlongLineA(line, intersectionPline);
       testDistance = Math.abs(testDistance - 0.5);
       if (testDistance >= 0 && testDistance <= 1) {

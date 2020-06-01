@@ -29,7 +29,6 @@ export class BubbleSet {
     let nodeInfluenceFactor = 1;
     let edgeInfluenceFactor = 1;
     let negativeNodeInfluenceFactor = -0.8;
-    let potentialArea: Area | null = null;
 
     let activeRegion = memberItems[0].clone();
     memberItems.forEach((m) => {
@@ -49,7 +48,7 @@ export class BubbleSet {
     const padding = Math.max(this.edgeR1, this.nodeR1) + this.morphBuffer;
     activeRegion = addPadding(activeRegion, padding);
 
-    potentialArea = new Area(
+    const potentialArea = new Area(
       Math.ceil(activeRegion.width / this.pixelGroup),
       Math.ceil(activeRegion.height / this.pixelGroup)
     );
@@ -57,21 +56,14 @@ export class BubbleSet {
     const estLength = (Math.floor(activeRegion.width) + Math.floor(activeRegion.height)) * 2;
     const surface = new PointList(estLength);
 
-    let tempThreshold = threshold;
-    let tempNegativeNodeInfluenceFactor = negativeNodeInfluenceFactor;
-    let tempNodeInfluenceFactor = nodeInfluenceFactor;
-    let tempEdgeInfluenceFactor = edgeInfluenceFactor;
-
     let iterations = 0;
 
-    const fillPotentialArea = (members: Rectangle[], nonMembers: Rectangle[], potentialArea: Area) => {
-      let influenceFactor = 0;
+    const fillPotentialArea = () => {
       // add all positive energy (included items) first, as negative energy
       // (morphing) requires all positives to be already set
       if (nodeInfluenceFactor) {
-        members.forEach((item) => {
+        memberItems.forEach((item) => {
           // add node energy
-          influenceFactor = nodeInfluenceFactor;
           const nodeRDiff = this.nodeR0 - this.nodeR1;
           // using inverse a for numerical stability
           const inva = nodeRDiff * nodeRDiff;
@@ -79,7 +71,7 @@ export class BubbleSet {
             activeRegion,
             this.pixelGroup,
             potentialArea,
-            influenceFactor / inva,
+            nodeInfluenceFactor / inva,
             this.nodeR1,
             item
           );
@@ -88,14 +80,13 @@ export class BubbleSet {
 
       if (edgeInfluenceFactor) {
         // add the influence of all the virtual edges
-        influenceFactor = edgeInfluenceFactor;
         const inva = (this.edgeR0 - this.edgeR1) * (this.edgeR0 - this.edgeR1);
 
         if (virtualEdges.length > 0) {
           calculateLinesInfluence(
             this.pixelGroup,
             potentialArea,
-            influenceFactor / inva,
+            edgeInfluenceFactor / inva,
             this.edgeR1,
             virtualEdges,
             activeRegion
@@ -109,15 +100,14 @@ export class BubbleSet {
           // if item is within influence bounds, add potential
           if (activeRegion.intersects(item)) {
             // subtract influence
-            influenceFactor = negativeNodeInfluenceFactor;
-            var nodeRDiff = this.nodeR0 - this.nodeR1;
+            const nodeRDiff = this.nodeR0 - this.nodeR1;
             // using inverse a for numerical stability
-            var inva = nodeRDiff * nodeRDiff;
+            const inva = nodeRDiff * nodeRDiff;
             calculateRectangleNegativeInfluence(
               activeRegion,
               this.pixelGroup,
               potentialArea,
-              influenceFactor / inva,
+              negativeNodeInfluenceFactor / inva,
               this.nodeR1,
               item
             );
@@ -127,7 +117,7 @@ export class BubbleSet {
     };
 
     // add the aggregate and all it's members and virtual edges
-    fillPotentialArea(memberItems, nonMembers, potentialArea);
+    fillPotentialArea();
 
     // try to march, check if surface contains all items
     while (
@@ -143,7 +133,7 @@ export class BubbleSet {
         threshold *= 0.95;
         nodeInfluenceFactor *= 1.2;
         edgeInfluenceFactor *= 1.2;
-        fillPotentialArea(memberItems, nonMembers, potentialArea);
+        fillPotentialArea();
       }
 
       // after half the iterations, start increasing positive energy and lowering the threshold
@@ -151,16 +141,10 @@ export class BubbleSet {
         if (negativeNodeInfluenceFactor != 0) {
           threshold *= 0.95;
           negativeNodeInfluenceFactor *= 0.8;
-          fillPotentialArea(memberItems, nonMembers, potentialArea);
+          fillPotentialArea();
         }
       }
     }
-
-    // let lastThreshold = threshold;
-    threshold = tempThreshold;
-    negativeNodeInfluenceFactor = tempNegativeNodeInfluenceFactor;
-    nodeInfluenceFactor = tempNodeInfluenceFactor;
-    edgeInfluenceFactor = tempEdgeInfluenceFactor;
 
     // start with global SKIP value, but decrease skip amount if there aren't enough points in the surface
     let thisSkip = this.skip;
@@ -481,11 +465,10 @@ export class BubbleSet {
 function calculateCentroidDistances(items: Rectangle[]) {
   let totalX = 0;
   let totalY = 0;
-  let nodeCount = 0;
+  const nodeCount = items.length;
   items.forEach((item) => {
     totalX += item.cx;
     totalY += item.cy;
-    nodeCount += 1;
   });
   totalX /= nodeCount;
   totalY /= nodeCount;

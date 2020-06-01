@@ -18,6 +18,9 @@ export class PointList {
     return this.set.has(p.toString());
   }
   isFirst(p: Point) {
+    if (this.count === 0) {
+      return false;
+    }
     const o = this.arr[0];
     return o != null && o.x === p.x && o.y === p.y;
   }

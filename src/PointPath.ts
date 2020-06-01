@@ -5,7 +5,7 @@ export class PointPath {
 
   closed = true;
 
-  constructor(points: ReadonlyArray<Point>) {
+  constructor(points: ReadonlyArray<Point> = []) {
     this.points = points.slice();
   }
 
@@ -17,13 +17,13 @@ export class PointPath {
     this.points.push(point);
   }
 
-  get(index: number) {
+  get(index: number): Point {
     let i = index;
     const l = this.points.length;
     if (index < 0) {
-      i = this.closed ? this.length - (index % l) : 0;
+      return this.closed ? this.get(index + l) : this.points[0];
     } else if (index >= l) {
-      i = this.closed ? i % l : l - 1;
+      return this.closed ? this.get(index - l) : this.points[l - 1];
     }
     return this.points[i];
   }

@@ -29,8 +29,8 @@ export class Rectangle {
   }
 
   add(that: Rectangle) {
-    const x = Math.min(this.x, this.x);
-    const y = Math.min(this.x, that.x);
+    const x = Math.min(this.x, that.x);
+    const y = Math.min(this.y, that.y);
     const x2 = Math.max(this.x2, that.x2);
     const y2 = Math.max(this.y2, that.y2);
     this.x = x;
@@ -103,14 +103,14 @@ export class Rectangle {
       out |= Rectangle.OUT_LEFT | Rectangle.OUT_RIGHT;
     } else if (px < this.x) {
       out |= Rectangle.OUT_LEFT;
-    } else if (px > this.x + this.width) {
+    } else if (px > this.x2) {
       out |= Rectangle.OUT_RIGHT;
     }
     if (this.height <= 0) {
       out |= Rectangle.OUT_TOP | Rectangle.OUT_BOTTOM;
     } else if (py < this.y) {
       out |= Rectangle.OUT_TOP;
-    } else if (py > this.y + this.height) {
+    } else if (py > this.y2) {
       out |= Rectangle.OUT_BOTTOM;
     }
     return out;

@@ -7,7 +7,7 @@ export class Line {
 
   asRect() {
     const minX = Math.min(this.x1, this.x2);
-    const maxX = Math.min(this.x1, this.x2);
+    const maxX = Math.max(this.x1, this.x2);
     const minY = Math.min(this.y1, this.y2);
     const maxY = Math.max(this.y1, this.y2);
 
