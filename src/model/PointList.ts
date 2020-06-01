@@ -17,6 +17,7 @@ export class PointList {
   contains(p: Point) {
     return this.set.has(p.toString());
   }
+
   isFirst(p: Point) {
     if (this.count === 0) {
       return false;

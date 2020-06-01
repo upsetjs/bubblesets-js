@@ -50,7 +50,7 @@ export function shapeSimplifier(tolerance = 0.0) {
     if (tolerance < 0 || path.length < 3) {
       return path;
     }
-    const states = [];
+    const states: State[] = [];
     let start = 0;
     while (start < path.length) {
       var s = new State(path, start);

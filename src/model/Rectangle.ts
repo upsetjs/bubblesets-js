@@ -2,7 +2,6 @@ import { Point } from './Point';
 import { Line } from './Line';
 
 export class Rectangle {
-  centroidDistance = 0;
   constructor(public x: number, public y: number, public width: number, public height: number) {}
 
   get x2() {
@@ -22,10 +21,6 @@ export class Rectangle {
 
   clone() {
     return new Rectangle(this.x, this.y, this.width, this.height);
-  }
-
-  cmp(that: Rectangle) {
-    return this.centroidDistance - that.centroidDistance;
   }
 
   add(that: Rectangle) {

@@ -20,7 +20,11 @@ export class BubbleSet {
 
   constructor() {}
 
-  createOutline(memberItems: Rectangle[], nonMembers: Rectangle[], edges: Line[] = []) {
+  createOutline(
+    memberItems: ReadonlyArray<Rectangle>,
+    nonMembers: ReadonlyArray<Rectangle>,
+    edges: ReadonlyArray<Line> = []
+  ) {
     if (memberItems.length === 0) {
       return new PointPath([]);
     }
@@ -212,8 +216,8 @@ export class BubbleSet {
   calculateContour(
     contour: PointList,
     bounds: Rectangle,
-    members: Rectangle[],
-    nonMembers: Rectangle[],
+    members: ReadonlyArray<Rectangle>,
+    nonMembers: ReadonlyArray<Rectangle>,
     potentialArea: Area,
     threshold: number
   ) {
@@ -224,7 +228,12 @@ export class BubbleSet {
     return this.testContainment(contour, bounds, members, nonMembers)[0];
   }
 
-  testContainment(contour: PointList, bounds: Rectangle, members: Rectangle[], nonMembers: Rectangle[]) {
+  testContainment(
+    contour: PointList,
+    bounds: Rectangle,
+    members: ReadonlyArray<Rectangle>,
+    nonMembers: ReadonlyArray<Rectangle>
+  ) {
     // precise bounds checking
     // copy hull values
     const g: Point[] = [];
@@ -312,13 +321,12 @@ export class BubbleSet {
     return [containsAll, containsExtra];
   }
 
-  calculateVirtualEdges(items: Rectangle[], nonMembers: Rectangle[]) {
+  calculateVirtualEdges(items: ReadonlyArray<Rectangle>, nonMembers: ReadonlyArray<Rectangle>) {
     const visited: Rectangle[] = [];
     const virtualEdges: Line[] = [];
-    calculateCentroidDistances(items);
-    items.sort((a, b) => a.cmp(b));
+    const sorted = sortByDistanceToCentroid(items);
 
-    items.forEach((item) => {
+    sorted.forEach((item) => {
       const lines = this.connectItem(nonMembers, item, visited);
       lines.forEach((l) => {
         virtualEdges.push(l);
@@ -328,15 +336,14 @@ export class BubbleSet {
     return virtualEdges;
   }
 
-  connectItem(nonMembers: Rectangle[], item: Rectangle, visited: Rectangle[]) {
+  connectItem(nonMembers: ReadonlyArray<Rectangle>, item: Rectangle, visited: Rectangle[]) {
     const scannedLines: Line[] = [];
     const linesToCheck: Line[] = [];
 
     let itemCenter = new Point(item.cx, item.cy);
-    let closestNeighbor: Rectangle | null = null;
     let minLengthSq = Number.POSITIVE_INFINITY;
     // discover the nearest neighbor with minimal interference items
-    for (const neighborItem of visited) {
+    const closestNeighbor = visited.reduce((closestNeighbor, neighborItem) => {
       const nCenter = new Point(neighborItem.cx, neighborItem.cy);
       const distanceSq = itemCenter.distanceSq(nCenter);
 
@@ -349,7 +356,8 @@ export class BubbleSet {
         closestNeighbor = neighborItem;
         minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
       }
-    }
+      return closestNeighbor;
+    }, null as Rectangle | null)!;
 
     // if there is a visited closest neighbor, add straight line between
     // them to the positive energy to ensure connected clusters
@@ -380,14 +388,14 @@ export class BubbleSet {
             var movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
             // test the movePoint already exists
             var foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-            var pointInside = isPointInsideNonMember(movePoint, nonMembers);
+            var pointInside = isPointInRectangles(movePoint, nonMembers);
             // prefer first corner, even if buffer becomes very small
             while (!foundFirst && pointInside && tempMorphBuffer >= 1) {
               // try a smaller buffer
               tempMorphBuffer /= 1.5;
               movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
               foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-              pointInside = isPointInsideNonMember(movePoint, nonMembers);
+              pointInside = isPointInRectangles(movePoint, nonMembers);
             }
 
             if (movePoint && !foundFirst && !pointInside) {
@@ -404,14 +412,14 @@ export class BubbleSet {
               tempMorphBuffer = this.morphBuffer;
               movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
               var foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-              pointInside = isPointInsideNonMember(movePoint, nonMembers);
+              pointInside = isPointInRectangles(movePoint, nonMembers);
               // if both corners have been used, stop; otherwise gradually reduce buffer and try second corner
               while (!foundSecond && pointInside && tempMorphBuffer >= 1) {
                 // try a smaller buffer
                 tempMorphBuffer /= 1.5;
                 movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
                 foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-                pointInside = isPointInsideNonMember(movePoint, nonMembers);
+                pointInside = isPointInRectangles(movePoint, nonMembers);
               }
 
               if (movePoint && !foundSecond) {
@@ -462,25 +470,25 @@ export class BubbleSet {
   }
 }
 
-function calculateCentroidDistances(items: Rectangle[]) {
+function sortByDistanceToCentroid(items: ReadonlyArray<Rectangle>) {
   let totalX = 0;
   let totalY = 0;
-  const nodeCount = items.length;
   items.forEach((item) => {
     totalX += item.cx;
     totalY += item.cy;
   });
-  totalX /= nodeCount;
-  totalY /= nodeCount;
-  items.forEach((item) => {
+  totalX /= items.length;
+  totalY /= items.length;
+  const dist = (item: Rectangle) => {
     const diffX = totalX - item.cx;
     const diffY = totalY - item.cy;
-    item.centroidDistance = Math.sqrt(diffX * diffX + diffY * diffY);
-  });
+    return diffX * diffX + diffY * diffY;
+  };
+  return items.slice().sort((a, b) => dist(a) - dist(b));
 }
 
-function isPointInsideNonMember(point: Point, nonMembers: Rectangle[]) {
-  return nonMembers.some((testRectangle) => testRectangle.contains(point));
+function isPointInRectangles(point: Point, rects: ReadonlyArray<Rectangle>) {
+  return rects.some((testRectangle) => testRectangle.contains(point));
 }
 
 function pointExists(pointToCheck: Point, lines: Line[]) {
@@ -495,7 +503,7 @@ function pointExists(pointToCheck: Point, lines: Line[]) {
   });
 }
 
-function getCenterItem(items: Rectangle[], testLine: Line) {
+function getCenterItem(items: ReadonlyArray<Rectangle>, testLine: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
   let closestItem: Rectangle | null = null;
 
@@ -512,7 +520,7 @@ function getCenterItem(items: Rectangle[], testLine: Line) {
   return closestItem;
 }
 
-function countInterferenceItems(interferenceItems: Rectangle[], testLine: Line) {
+function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, testLine: Line) {
   return interferenceItems.reduce((count, interferenceItem) => {
     if (interferenceItem.intersectsLine(testLine)) {
       if (Intersection.fractionToLineCenter(interferenceItem, testLine) >= 0) {

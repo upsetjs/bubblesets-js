@@ -9,10 +9,6 @@ export class PointPath {
     this.points = points.slice();
   }
 
-  addAll(points: ReadonlyArray<Point>) {
-    points.forEach((p) => this.add(p));
-  }
-
   add(point: Point) {
     this.points.push(point);
   }
@@ -33,11 +29,19 @@ export class PointPath {
   }
 
   toString() {
-    let path = this.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0]},${p[1]}`).join(' ');
-    if (this.points.length > 0 && this.closed) {
-      path += ' Z';
+    const points = this.points;
+    if (points.length === 0) {
+      return '';
     }
-    return path;
+    let r = 'M';
+    for (const p of points) {
+      r += `${p[0]},${p[1]} L`;
+    }
+    r = r.slice(0, -1);
+    if (this.closed) {
+      r += ' Z';
+    }
+    return r;
   }
 
   apply(transformer: (path: PointPath) => PointPath) {
