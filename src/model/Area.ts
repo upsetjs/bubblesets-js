@@ -1,11 +1,13 @@
 export class Area {
   private readonly pixels: Float32Array;
   constructor(public readonly width: number, public readonly height: number) {
-    this.pixels = new Float32Array(width * height);
+    this.pixels = new Float32Array(Math.max(0, width * height));
   }
 
   bound(pos: number, isX: boolean) {
-    if (pos < 0) return 0;
+    if (pos < 0) {
+      return 0;
+    }
     return Math.min(pos, (isX ? this.width : this.height) - 1);
   }
 

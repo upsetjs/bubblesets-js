@@ -55,8 +55,8 @@
   "scripts": {
     "clean": "rimraf dist .tmp node_modules",
     "compile": "tsc -p tsconfig.json --noEmit",
-    "start": "tsdx watch --noClean --name Bubblesets --format esm,umd",
-    "build": "npm run clean && tsdx build --name Bubblesets --format esm,umd && npm run typings",
+    "start": "tsdx watch --noClean --name BubblesSts --format esm,umd",
+    "build": "npm run clean && tsdx build --name BubbleSets --format esm,umd && npm run typings",
     "typings": "tsc -p tsconfig.dts.json && rollup -c rollup.dts.config.js",
     "test": "tsdx test --passWithNoTests",
     "test:watch": "tsdx test --passWithNoTests --watch",
