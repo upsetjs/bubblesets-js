@@ -1,10 +1,6 @@
 export class Point {
   constructor(public x: number, public y: number) {}
 
-  distanceSq(p: Point) {
-    return Point.ptsDistanceSq(this.x, this.y, p.x, p.y);
-  }
-
   get p(): [number, number] {
     return [this.x, this.y];
   }

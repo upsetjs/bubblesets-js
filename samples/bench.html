@@ -24,8 +24,8 @@
         }
         var rectanglesA = [];
         var rectanglesB = [];
-        for (var x = 0; x < 12; x += 1) {
-          for (var y = 0; y < 9; y += 1) {
+        for (var x = 0; x < 12; x++) {
+          for (var y = 0; y < 9; y++) {
             var isA = (x & 1) !== (y & 1);
             var rects = isA ? rectanglesA : rectanglesB;
             var coords = {
@@ -59,7 +59,7 @@
 
           var runs = 5;
           var res = null;
-          for (var warm = 0; warm < runs; warm += 1) {
+          for (var warm = 0; warm < runs; warm++) {
             var tmp = doRun();
             if (res && res !== tmp) {
               console.warn('inconsistent result');
@@ -69,7 +69,7 @@
           }
           var time = null;
           timer('benchmark');
-          for (var warm = 0; warm < runs; warm += 1) {
+          for (var warm = 0; warm < runs; warm++) {
             var finalRes = doRun();
             if (finalRes !== res) {
               console.warn('inconsistent end result');
@@ -97,7 +97,7 @@
         var now = timeNow();
         var time = now - timers[name + '_start'];
         timers[name + '_start'] = now;
-        timers[name + '_amount'] += 1;
+        timers[name + '_amount']++;
         timers[name + '_sum'] += time;
         timers[name + '_avg'] = timers[name + '_sum'] / timers[name + '_amount'];
         return timers[name + '_avg'];

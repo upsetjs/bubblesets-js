@@ -7,15 +7,11 @@ const S = 1;
 const E = 2;
 const W = 3;
 
-export function marchingSquares(contour: PointList, potentialArea: Area, step: number, t: number) {
-  let direction = S;
-  let threshold = t;
-  let marched = false;
-
+export function marchingSquares(contour: PointList, potentialArea: Area, step: number, threshold: number) {
   function updateDir(x: number, y: number, dir: number, res: number) {
-    var v = potentialArea.get(x, y);
+    const v = potentialArea.get(x, y);
     if (Number.isNaN(v)) {
-      return v;
+      return Number.NaN;
     }
     if (v > threshold) {
       return dir + res;
@@ -24,7 +20,7 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
   }
 
   function getState(x: number, y: number) {
-    var dir = 0;
+    let dir = N;
     dir = updateDir(x, y, dir, 1);
     dir = updateDir(x + 1, y, dir, 2);
     dir = updateDir(x, y + 1, dir, 4);
@@ -38,9 +34,11 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
     return dir;
   }
 
-  function doMarch(xpos: number, ypos: number) {
-    let x = xpos;
-    let y = ypos;
+  let direction = S;
+
+  function doMarch(xPos: number, yPos: number) {
+    let x = xPos;
+    let y = yPos;
     for (;;) {
       // iterative version of end recursion
       const p = new Point(x * step, y * step);
@@ -60,9 +58,9 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
       switch (state) {
         case -1:
           return true; // Marched out of bounds
-        case 0:
-        case 3:
-        case 2:
+        case N:
+        case W:
+        case E:
         case 7:
           direction = E;
           break;
@@ -74,7 +72,7 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
         case 6:
           direction = direction == N ? W : E;
           break;
-        case 1:
+        case S:
         case 13:
         case 5:
           direction = N;
@@ -94,16 +92,16 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
 
       switch (direction) {
         case N:
-          y -= 1; // up
+          y--; // up
           break;
         case S:
-          y += 1; // down
+          y++; // down
           break;
         case W:
-          x -= 1; // left
+          x--; // left
           break;
         case E:
-          x += 1; // right
+          x++; // right
           break;
         default:
           console.warn('Marching squares invalid state: ' + state);
@@ -112,12 +110,14 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
     }
   }
 
-  for (let x = 0; x < potentialArea.width && !marched; x += 1) {
-    for (let y = 0; y < potentialArea.height && !marched; y += 1) {
+  for (let x = 0; x < potentialArea.width; x++) {
+    for (let y = 0; y < potentialArea.height; y++) {
       if (potentialArea.get(x, y) > threshold && getState(x, y) != 15) {
-        marched = doMarch(x, y);
+        if (doMarch(x, y)) {
+          return true;
+        }
       }
     }
   }
-  return marched;
-} // MarchingSquares
+  return false;
+}

@@ -47,93 +47,74 @@ export function createOutline(
   const memberItems = members.map(Rectangle.from);
   const nonMemberItems = nonMembers.map(Rectangle.from);
 
-  let threshold = 1;
-  let nodeInfluenceFactor = 1;
-  let edgeInfluenceFactor = 1;
-  let negativeNodeInfluenceFactor = -0.8;
-
   // calculate and store virtual edges
-  const virtualEdges = calculateVirtualEdges(memberItems, nonMemberItems, o);
-
-  edges.forEach((e) => {
-    virtualEdges.push(Line.from(e));
-  });
-  let activeRegion = memberItems[0].clone();
-  memberItems.forEach((m) => {
-    activeRegion.add(m);
-  });
-
-  virtualEdges.forEach((l) => {
-    activeRegion.add(l.asRect());
-  });
-  const padding = Math.max(o.edgeR1, o.nodeR1) + o.morphBuffer;
-  activeRegion = Rectangle.from(addPadding(activeRegion, padding));
+  const edgeItems = calculateVirtualEdges(memberItems, nonMemberItems, o);
+  for (const e of edges) {
+    edgeItems.push(Line.from(e));
+  }
+  const activeRegion = computeActiveRegion(memberItems, edgeItems, o);
+  const nonMembersInRegion = nonMemberItems.filter((item) => activeRegion.intersects(item));
 
   const potentialArea = new Area(
     Math.ceil(activeRegion.width / o.pixelGroup),
     Math.ceil(activeRegion.height / o.pixelGroup)
   );
 
+  let threshold = 1;
+  let nodeInfluenceFactor = 1;
+  let edgeInfluenceFactor = 1;
+  let negativeNodeInfluenceFactor = -0.8;
+
+  const nodeRDiff = o.nodeR0 - o.nodeR1;
+  // using inverse a for numerical stability
+  const nodeInfA = nodeRDiff * nodeRDiff;
+  const edgeInfA = (o.edgeR0 - o.edgeR1) * (o.edgeR0 - o.edgeR1);
   const estLength = (Math.floor(activeRegion.width) + Math.floor(activeRegion.height)) * 2;
   const surface = new PointList(estLength);
-
-  let iterations = 0;
 
   const fillPotentialArea = () => {
     // add all positive energy (included items) first, as negative energy
     // (morphing) requires all positives to be already set
-    if (nodeInfluenceFactor) {
-      memberItems.forEach((item) => {
+    if (nodeInfluenceFactor !== 0) {
+      for (const item of memberItems) {
         // add node energy
-        const nodeRDiff = o.nodeR0 - o.nodeR1;
-        // using inverse a for numerical stability
-        const inva = nodeRDiff * nodeRDiff;
         calculateRectangleInfluence(
           activeRegion,
           o.pixelGroup,
           potentialArea,
-          nodeInfluenceFactor / inva,
+          nodeInfluenceFactor / nodeInfA,
           o.nodeR1,
           item
-        );
-      }); // end processing node items of this aggregate
-    } // end processing positive node energy
-
-    if (edgeInfluenceFactor) {
-      // add the influence of all the virtual edges
-      const inva = (o.edgeR0 - o.edgeR1) * (o.edgeR0 - o.edgeR1);
-
-      if (virtualEdges.length > 0) {
-        calculateLinesInfluence(
-          o.pixelGroup,
-          potentialArea,
-          edgeInfluenceFactor / inva,
-          o.edgeR1,
-          virtualEdges,
-          activeRegion
         );
       }
     }
 
+    if (edgeInfluenceFactor !== 0 && edgeItems.length > 0) {
+      // add the influence of all the virtual edges
+      calculateLinesInfluence(
+        o.pixelGroup,
+        potentialArea,
+        edgeInfluenceFactor / edgeInfA,
+        o.edgeR1,
+        edgeItems,
+        activeRegion
+      );
+    }
+
     // calculate negative energy contribution for all other visible items within bounds
-    if (negativeNodeInfluenceFactor) {
-      nonMemberItems.forEach((item) => {
-        // if item is within influence bounds, add potential
-        if (activeRegion.intersects(item)) {
-          // subtract influence
-          const nodeRDiff = o.nodeR0 - o.nodeR1;
-          // using inverse a for numerical stability
-          const inva = nodeRDiff * nodeRDiff;
-          calculateRectangleNegativeInfluence(
-            activeRegion,
-            o.pixelGroup,
-            potentialArea,
-            negativeNodeInfluenceFactor / inva,
-            o.nodeR1,
-            item
-          );
-        }
-      });
+    if (negativeNodeInfluenceFactor !== 0) {
+      for (const item of nonMembersInRegion) {
+        // subtract influence
+        // using inverse a for numerical stability
+        calculateRectangleInfluence(
+          activeRegion,
+          o.pixelGroup,
+          potentialArea,
+          negativeNodeInfluenceFactor / nodeInfA,
+          o.nodeR1,
+          item
+        );
+      }
     }
   };
 
@@ -141,32 +122,49 @@ export function createOutline(
   fillPotentialArea();
 
   // try to march, check if surface contains all items
+  let iterations = 0;
   while (
-    !calculateContour(surface, activeRegion, memberItems, nonMemberItems, potentialArea, threshold, o) &&
-    iterations < o.maxMarchingIterations
+    iterations < o.maxMarchingIterations &&
+    !calculateContour(surface, activeRegion, memberItems, nonMemberItems, potentialArea, threshold, o)
   ) {
     surface.clear();
-    iterations += 1;
+    iterations++;
 
     // reduce negative influences first; this will allow the surface to
     // pass without making it fatter all around (which raising the threshold does)
+    threshold *= 0.95;
     if (iterations <= o.maxMarchingIterations * 0.5) {
-      threshold *= 0.95;
       nodeInfluenceFactor *= 1.2;
       edgeInfluenceFactor *= 1.2;
-      fillPotentialArea();
+    } else if (negativeNodeInfluenceFactor != 0 && nonMembersInRegion.length > 0) {
+      // after half the iterations, start increasing positive energy and lowering the threshold
+      negativeNodeInfluenceFactor *= 0.8;
+    } else {
+      break;
     }
-
-    // after half the iterations, start increasing positive energy and lowering the threshold
-    if (iterations > o.maxMarchingIterations * 0.5) {
-      if (negativeNodeInfluenceFactor != 0) {
-        threshold *= 0.95;
-        negativeNodeInfluenceFactor *= 0.8;
-        fillPotentialArea();
-      }
-    }
+    fillPotentialArea();
   }
+  return postProcessSurface(surface, activeRegion, o);
+}
 
+function computeActiveRegion(
+  memberItems: Rectangle[],
+  edgeItems: Line[],
+  o: Required<IOutlineOptions> & IOutlineOptions
+) {
+  let activeRegion = memberItems[0].clone();
+  for (const m of memberItems) {
+    activeRegion.add(m);
+  }
+  for (const l of edgeItems) {
+    activeRegion.add(l.asRect());
+  }
+  const padding = Math.max(o.edgeR1, o.nodeR1) + o.morphBuffer;
+  activeRegion = Rectangle.from(addPadding(activeRegion, padding));
+  return activeRegion;
+}
+
+function postProcessSurface(surface: PointList, activeRegion: IRectangle, o: Required<IOutlineOptions>) {
   // start with global SKIP value, but decrease skip amount if there aren't enough points in the surface
   let skip = o.skip;
   // prepare viz attribute array
@@ -185,13 +183,12 @@ export function createOutline(
   const xCorner = activeRegion.x;
   const yCorner = activeRegion.y;
 
-  const finalHull = new PointList(size);
+  const finalHull: [number, number][] = [];
   // copy hull values
-  for (let i = 0, j = 0; j < size; j += 1, i += skip) {
-    finalHull.add(new Point(surface.get(i).x + xCorner, surface.get(i).y + yCorner));
+  for (let i = 0, j = 0; j < size; j++, i += skip) {
+    finalHull.push([surface.get(i).x + xCorner, surface.get(i).y + yCorner]);
   }
-
-  return finalHull.path();
+  return new PointPath(finalHull);
 }
 
 function calculateContour(
@@ -235,7 +232,7 @@ function testContainment(
       line.x2 = cur.x;
       line.y2 = cur.y;
       if (line.cuts(p)) {
-        crossings += 1;
+        crossings++;
       }
     });
 
@@ -244,7 +241,7 @@ function testContainment(
     line.x2 = first.x;
     line.y2 = first.y;
     if (line.cuts(p)) {
-      crossings += 1;
+      crossings++;
     }
     return crossings % 2 == 1;
   }
@@ -267,7 +264,7 @@ function testContainment(
   let ycorner = bounds.y;
 
   // simulate the surface we will eventually draw, using straight segments (approximate, but fast)
-  for (let i = 0; i < size - 1; i += 1) {
+  for (let i = 0; i < size - 1; i++) {
     const px = contour.get(i * skip).x + xcorner;
     const py = contour.get(i * skip).y + ycorner;
     const r = new Rectangle(px, py, 0, 0);
@@ -286,14 +283,14 @@ function testContainment(
     members.forEach((item) => {
       const p = new Point(item.cx, item.cy);
       // check rough bounds
-      containsAll = containsAll && gbounds!.contains(p);
+      containsAll = containsAll && gbounds!.containsPt(item.cx, item.cy);
       // check precise bounds if rough passes
       containsAll = containsAll && contains(g, p);
     });
     nonMembers.forEach((item) => {
       const p = new Point(item.cx, item.cy);
       // check rough bounds
-      if (gbounds!.contains(p)) {
+      if (gbounds!.containsPt(item.cx, item.cy)) {
         // check precise bounds if rough passes
         if (contains(g, p)) {
           containsExtra = true;
@@ -336,10 +333,9 @@ function connectItem(
   let minLengthSq = Number.POSITIVE_INFINITY;
   // discover the nearest neighbor with minimal interference items
   const closestNeighbor = visited.reduce((closestNeighbor, neighborItem) => {
-    const nCenter = new Point(neighborItem.cx, neighborItem.cy);
-    const distanceSq = itemCenter.distanceSq(nCenter);
+    const distanceSq = Point.ptsDistanceSq(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
 
-    const completeLine = new Line(itemCenter.x, itemCenter.y, nCenter.x, nCenter.y);
+    const completeLine = new Line(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
     // augment distance by number of interfering items
     const numberInterferenceItems = countInterferenceItems(nonMembers, completeLine);
 
@@ -362,9 +358,6 @@ function connectItem(
 
   let hasIntersection = true;
   let iterations = 0;
-  const intersections: Intersection[] = [];
-  intersections.length = 4;
-  let numIntersections = 0;
 
   while (hasIntersection && iterations < o.maxRoutingIterations) {
     hasIntersection = false;
@@ -373,9 +366,9 @@ function connectItem(
       // resolve intersections in order along edge
       var closestItem = getCenterItem(nonMembers, line);
       if (closestItem) {
-        numIntersections = testIntersection(line, closestItem, intersections);
+        const intersections = testIntersection(line, closestItem);
         // 2 intersections = line passes through item
-        if (numIntersections == 2) {
+        if (intersections.count == 2) {
           var tempMorphBuffer = o.morphBuffer;
           var movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
           // test the movePoint already exists
@@ -429,7 +422,7 @@ function connectItem(
       if (!hasIntersection) {
         scannedLines.push(line);
       }
-      iterations += 1;
+      iterations++;
     } // end inner loop - out of lines or found an intersection
   } // end outer loop - no more intersections or out of iterations
 
@@ -482,10 +475,10 @@ function sortByDistanceToCentroid(items: ReadonlyArray<Rectangle>) {
 }
 
 function isPointInRectangles(point: Point, rects: ReadonlyArray<Rectangle>) {
-  return rects.some((testRectangle) => testRectangle.contains(point));
+  return rects.some((r) => r.containsPt(point.x, point.y));
 }
 
-function pointExists(pointToCheck: Point, lines: Line[]) {
+function pointExists(pointToCheck: Point, lines: ReadonlyArray<Line>) {
   return lines.some((checkEndPointsLine) => {
     if (Point.doublePointsEqual(checkEndPointsLine.x1, checkEndPointsLine.y1, pointToCheck.x, pointToCheck.y, 1e-3)) {
       return true;
@@ -536,13 +529,13 @@ function calculateLinesInfluence(
   lines.forEach((line) => {
     const lr = line.asRect();
     // only traverse the plausible area
-    const startX = potentialArea.bound(Math.floor((lr.x - r1 - activeRegion.x) / pixelGroup), true);
-    const startY = potentialArea.bound(Math.floor((lr.y - r1 - activeRegion.y) / pixelGroup), false);
-    const endX = potentialArea.bound(Math.ceil((lr.x2 + r1 - activeRegion.x) / pixelGroup), true);
-    const endY = potentialArea.bound(Math.ceil((lr.y2 + r1 - activeRegion.y) / pixelGroup), false);
+    const startX = potentialArea.boundX(Math.floor((lr.x - r1 - activeRegion.x) / pixelGroup));
+    const startY = potentialArea.boundY(Math.floor((lr.y - r1 - activeRegion.y) / pixelGroup));
+    const endX = potentialArea.boundX(Math.ceil((lr.x2 + r1 - activeRegion.x) / pixelGroup));
+    const endY = potentialArea.boundY(Math.ceil((lr.y2 + r1 - activeRegion.y) / pixelGroup));
     // for every point in active part of potentialArea, calculate distance to nearest point on line and add influence
-    for (let y = startY; y < endY; y += 1) {
-      for (let x = startX; x < endX; x += 1) {
+    for (let y = startY; y < endY; y++) {
+      for (let x = startX; x < endX; x++) {
         // if we are adding negative energy, skip if not already
         // positive; positives have already been added first, and adding
         // negative to <=0 will have no affect on surface
@@ -556,7 +549,7 @@ function calculateLinesInfluence(
         // only influence if less than r1
         if (minDistanceSq < r1 * r1) {
           const mdr = Math.sqrt(minDistanceSq) - r1;
-          potentialArea.set(x, y, potentialArea.get(x, y) + influenceFactor * mdr * mdr);
+          potentialArea.inc(x, y, influenceFactor * mdr * mdr);
         }
       }
     }
@@ -627,50 +620,18 @@ function calculateRectangleInfluence(
   r1: number,
   rect: Rectangle
 ) {
-  influenceFactor < 0 && console.warn('expected positive influence', influenceFactor);
+  const ri2 = r1 * r1;
   // find the affected subregion of potentialArea
-  const startX = potentialArea.bound(Math.floor((rect.x - r1 - activeRegion.x) / pixelGroup), true);
-  const startY = potentialArea.bound(Math.floor((rect.y - r1 - activeRegion.y) / pixelGroup), false);
-  const endX = potentialArea.bound(Math.ceil((rect.x2 + r1 - activeRegion.x) / pixelGroup), true);
-  const endY = potentialArea.bound(Math.ceil((rect.y2 + r1 - activeRegion.y) / pixelGroup), false);
+  const startX = potentialArea.boundX(Math.floor((rect.x - r1 - activeRegion.x) / pixelGroup));
+  const startY = potentialArea.boundY(Math.floor((rect.y - r1 - activeRegion.y) / pixelGroup));
+  const endX = potentialArea.boundX(Math.ceil((rect.x2 + r1 - activeRegion.x) / pixelGroup));
+  const endY = potentialArea.boundY(Math.ceil((rect.y2 + r1 - activeRegion.y) / pixelGroup));
   // for every point in active subregion of potentialArea, calculate
   // distance to nearest point on rectangle and add influence
-  for (let y = startY; y < endY; y += 1) {
-    for (let x = startX; x < endX; x += 1) {
-      // convert back to screen coordinates
-      const tempX = x * pixelGroup + activeRegion.x;
-      const tempY = y * pixelGroup + activeRegion.y;
-      const distanceSq = getRectDistSq(rect, tempX, tempY);
-      // only influence if less than r1
-      if (distanceSq < r1 * r1) {
-        const dr = Math.sqrt(distanceSq) - r1;
-        potentialArea.set(x, y, potentialArea.get(x, y) + influenceFactor * dr * dr);
-      }
-    }
-  }
-}
-
-function calculateRectangleNegativeInfluence(
-  activeRegion: Rectangle,
-  pixelGroup: number,
-  potentialArea: Area,
-  influenceFactor: number,
-  r1: number,
-  rect: Rectangle
-) {
-  influenceFactor > 0 && console.warn('expected negative influence', influenceFactor);
-  // find the affected subregion of potentialArea
-  const startX = potentialArea.bound(Math.floor((rect.x - r1 - activeRegion.x) / pixelGroup), true);
-  const startY = potentialArea.bound(Math.floor((rect.y - r1 - activeRegion.y) / pixelGroup), false);
-  const endX = potentialArea.bound(Math.ceil((rect.x2 + r1 - activeRegion.x) / pixelGroup), true);
-  const endY = potentialArea.bound(Math.ceil((rect.y2 + r1 - activeRegion.y) / pixelGroup), false);
-  // for every point in active subregion of potentialArea, calculate
-  // distance to nearest point on rectangle and add influence
-  for (let y = startY; y < endY; y += 1) {
-    for (let x = startX; x < endX; x += 1) {
-      // skip if not already positive; positives have already been added first, and adding
-      // negative to <= 0 will have no affect on surface
-      if (potentialArea.get(x, y) <= 0) {
+  for (let y = startY; y < endY; y++) {
+    for (let x = startX; x < endX; x++) {
+      if (influenceFactor < 0 && potentialArea.get(x, y) <= 0) {
+        // no need to reduce a below zero point even further
         continue;
       }
       // convert back to screen coordinates
@@ -678,19 +639,24 @@ function calculateRectangleNegativeInfluence(
       const tempY = y * pixelGroup + activeRegion.y;
       const distanceSq = getRectDistSq(rect, tempX, tempY);
       // only influence if less than r1
-      if (distanceSq < r1 * r1) {
+      if (distanceSq < ri2) {
         const dr = Math.sqrt(distanceSq) - r1;
-        potentialArea.set(x, y, potentialArea.get(x, y) + influenceFactor * dr * dr);
+        potentialArea.inc(x, y, influenceFactor * dr * dr);
       }
     }
   }
 }
 
-function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections: Intersection[], wrapNormal: boolean) {
-  const topIntersect = intersections[0];
-  const leftIntersect = intersections[1];
-  const bottomIntersect = intersections[2];
-  const rightIntersect = intersections[3];
+function rerouteLine(
+  rectangle: Rectangle,
+  rerouteBuffer: number,
+  intersections: { top: Intersection; left: Intersection; right: Intersection; bottom: Intersection },
+  wrapNormal: boolean
+) {
+  const topIntersect = intersections.top;
+  const leftIntersect = intersections.left;
+  const bottomIntersect = intersections.bottom;
+  const rightIntersect = intersections.right;
 
   // wrap around the most efficient way
   if (wrapNormal) {
@@ -705,18 +671,17 @@ function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections:
       // else through left to right, calculate areas
       const totalArea = rectangle.area;
       // top area
-      const topArea =
-        rectangle.width * ((leftIntersect.point!.y - rectangle.y + (rightIntersect.point!.y - rectangle.y)) * 0.5);
+      const topArea = rectangle.width * ((leftIntersect.y - rectangle.y + (rightIntersect.y - rectangle.y)) * 0.5);
       if (topArea < totalArea * 0.5) {
         // go around top (the side which would make a greater movement)
-        if (leftIntersect.point!.y > rightIntersect.point!.y)
+        if (leftIntersect.y > rightIntersect.y)
           // top left
           return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
         // top right
         return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
       }
       // go around bottom
-      if (leftIntersect.point!.y < rightIntersect.point!.y)
+      if (leftIntersect.y < rightIntersect.y)
         // bottom left
         return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
       // bottom right
@@ -733,18 +698,17 @@ function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections:
     }
     // else through top to bottom, calculate areas
     const totalArea = rectangle.height * rectangle.width;
-    const leftArea =
-      rectangle.height * ((topIntersect.point!.x - rectangle.x + (rightIntersect.point!.x - rectangle.x)) * 0.5);
+    const leftArea = rectangle.height * ((topIntersect.x - rectangle.x + (rightIntersect.x - rectangle.x)) * 0.5);
     if (leftArea < totalArea * 0.5) {
       // go around left
-      if (topIntersect.point!.x > bottomIntersect.point!.x)
+      if (topIntersect.x > bottomIntersect.x)
         // top left
         return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
       // bottom left
       return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
     }
     // go around right
-    if (topIntersect.point!.x < bottomIntersect.point!.x)
+    if (topIntersect.x < bottomIntersect.x)
       // top right
       return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
     // bottom right
@@ -760,18 +724,17 @@ function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections:
       return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
     // else through left to right, calculate areas
     const totalArea = rectangle.height * rectangle.width;
-    const topArea =
-      rectangle.width * ((leftIntersect.point!.y - rectangle.y + (rightIntersect.point!.y - rectangle.y)) * 0.5);
+    const topArea = rectangle.width * ((leftIntersect.y - rectangle.y + (rightIntersect.y - rectangle.y)) * 0.5);
     if (topArea < totalArea * 0.5) {
       // go around bottom (the side which would make a lesser movement)
-      if (leftIntersect.point!.y > rightIntersect.point!.y)
+      if (leftIntersect.y > rightIntersect.y)
         // bottom right
         return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
       // bottom left
       return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
     }
     // go around top
-    if (leftIntersect.point!.y < rightIntersect.point!.y)
+    if (leftIntersect.y < rightIntersect.y)
       // top right
       return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
     // top left
@@ -787,18 +750,17 @@ function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections:
   }
   // else through top to bottom, calculate areas
   const totalArea = rectangle.height * rectangle.width;
-  const leftArea =
-    rectangle.height * ((topIntersect.point!.x - rectangle.x + (rightIntersect.point!.x - rectangle.x)) * 0.5);
+  const leftArea = rectangle.height * ((topIntersect.x - rectangle.x + (rightIntersect.x - rectangle.x)) * 0.5);
   if (leftArea < totalArea * 0.5) {
     // go around right
-    if (topIntersect.point!.x > bottomIntersect.point!.x)
+    if (topIntersect.x > bottomIntersect.x)
       // bottom right
       return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
     // top right
     return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
   }
   // go around left
-  if (topIntersect.point!.x < bottomIntersect.point!.x)
+  if (topIntersect.x < bottomIntersect.x)
     // bottom left
     return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
   // top left

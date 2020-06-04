@@ -1,4 +1,3 @@
-import { Point } from './Point';
 import { Line } from './Line';
 import { Rectangle } from './Rectangle';
 
@@ -10,7 +9,7 @@ export enum EState {
 }
 
 export class Intersection {
-  constructor(public readonly point: Point | null, public readonly state: EState) {}
+  constructor(public readonly state: EState, public readonly x = 0, public readonly y = 0) {}
 }
 
 export function intersectLineLine(la: Line, lb: Line) {
@@ -21,13 +20,13 @@ export function intersectLineLine(la: Line, lb: Line) {
     const ua = uaT / uB;
     const ub = ubT / uB;
     if (0 <= ua && ua <= 1 && 0 <= ub && ub <= 1) {
-      const p = new Point(la.x1 + ua * (la.x2 - la.x1), la.y1 + ua * (la.y2 - la.y1));
-      return new Intersection(p, EState.POINT);
+      return new Intersection(EState.POINT, la.x1 + ua * (la.x2 - la.x1), la.y1 + ua * (la.y2 - la.y1));
     }
-    return new Intersection(null, EState.NONE);
+    return new Intersection(EState.NONE);
   }
-  return new Intersection(null, uaT == 0 || ubT == 0 ? EState.COINCIDENT : EState.PARALLEL);
+  return new Intersection(uaT == 0 || ubT == 0 ? EState.COINCIDENT : EState.PARALLEL);
 }
+
 export function fractionAlongLineA(la: Line, lb: Line) {
   const uaT = (lb.x2 - lb.x1) * (la.y1 - lb.y1) - (lb.y2 - lb.y1) * (la.x1 - lb.x1);
   const ubT = (la.x2 - la.x1) * (la.y1 - lb.y1) - (la.y2 - la.y1) * (la.x1 - lb.x1);
@@ -50,7 +49,7 @@ export function fractionToLineCenter(bounds: Rectangle, line: Line) {
     let testDistance = fractionAlongLineA(line, new Line(xa, ya, xb, yb));
     testDistance = Math.abs(testDistance - 0.5);
     if (testDistance >= 0 && testDistance <= 1) {
-      countIntersections += 1;
+      countIntersections++;
       if (testDistance < minDistance) {
         minDistance = testDistance;
       }
@@ -85,7 +84,7 @@ export function fractionToLineEnd(bounds: Rectangle, line: Line) {
   function testLine(xa: number, ya: number, xb: number, yb: number) {
     const testDistance = fractionAlongLineA(line, new Line(xa, ya, xb, yb));
     if (testDistance >= 0 && testDistance <= 1) {
-      countIntersections += 1;
+      countIntersections++;
       if (testDistance < minDistance) {
         minDistance = testDistance;
       }
@@ -113,23 +112,20 @@ export function fractionToLineEnd(bounds: Rectangle, line: Line) {
   return minDistance;
 }
 
-export function testIntersection(line: Line, bounds: Rectangle, intersections: Intersection[]) {
-  let countIntersections = 0;
-
-  function fillIntersection(ix: number, xa: number, ya: number, xb: number, yb: number) {
-    intersections[ix] = intersectLineLine(line, new Line(xa, ya, xb, yb));
-    if (intersections[ix].state == EState.POINT) {
-      countIntersections += 1;
-    }
-  }
-
+export function testIntersection(line: Line, bounds: Rectangle) {
+  let count = 0;
   // top
-  fillIntersection(0, bounds.x, bounds.y, bounds.x2, bounds.y);
+  const top = intersectLineLine(line, new Line(bounds.x, bounds.y, bounds.x2, bounds.y));
+  count += top.state === EState.POINT ? 1 : 0;
   // left
-  fillIntersection(1, bounds.x, bounds.y, bounds.x, bounds.y2);
+  const left = intersectLineLine(line, new Line(bounds.x, bounds.y, bounds.x, bounds.y2));
+  count += left.state === EState.POINT ? 1 : 0;
   // bottom
-  fillIntersection(2, bounds.x, bounds.y2, bounds.x2, bounds.y2);
+  const bottom = intersectLineLine(line, new Line(bounds.x, bounds.y2, bounds.x2, bounds.y2));
+  count += bottom.state === EState.POINT ? 1 : 0;
   // right
-  fillIntersection(3, bounds.x2, bounds.y, bounds.x2, bounds.y2);
-  return countIntersections;
+  const right = intersectLineLine(line, new Line(bounds.x2, bounds.y, bounds.x2, bounds.y2));
+  count += right.state === EState.POINT ? 1 : 0;
+
+  return { top, left, bottom, right, count };
 }

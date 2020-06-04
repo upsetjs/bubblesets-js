@@ -25,7 +25,7 @@ export function bSplineShapeGenerator(granularity = 6.0) {
   function calcPoint(path: PointPath, i: number, t: number): [number, number] {
     let px = 0.0;
     let py = 0.0;
-    for (let j = REL_START; j <= REL_END; j += 1) {
+    for (let j = REL_START; j <= REL_END; j++) {
       const p = path.get(i + j);
       const bf = basicFunction(j, t);
       px += bf * p[0];

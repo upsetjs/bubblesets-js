@@ -31,7 +31,7 @@ export class PointList {
   }
 
   clear() {
-    // for (let i = 0; i < this.count; i += 1) {
+    // for (let i = 0; i < this.count; i++) {
     //   this.arr[i] = null; // nulling is cheaper than deleting or reallocating
     // }
     this.set.clear();

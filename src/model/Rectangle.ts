@@ -1,4 +1,3 @@
-import { Point } from './Point';
 import { Line } from './Line';
 import { IRectangle } from '../interfaces';
 
@@ -41,10 +40,6 @@ export class Rectangle {
 
   toString() {
     return `Rectangle[x=${this.x}, y=${this.y}, w=${this.width}, h=${this.height}]`;
-  }
-
-  contains(p: Point) {
-    return this.containsPt(p.x, p.y);
   }
 
   containsPt(px: number, py: number) {
