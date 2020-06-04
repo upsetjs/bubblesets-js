@@ -50,13 +50,8 @@
 
           function doRun() {
             var pointPath = BubbleSets.createOutline(
-              rectanglesA.map(
-                (r) => new BubbleSets.Rectangle(r.x - pad, r.y - pad, r.width + 2 * pad, r.height + 2 * pad)
-              ),
-              rectanglesB.map(
-                (r) => new BubbleSets.Rectangle(r.x - pad, r.y - pad, r.width + 2 * pad, r.height + 2 * pad)
-              ),
-              []
+              BubbleSets.addPadding(rectanglesA, pad),
+              BubbleSets.addPadding(rectanglesB, pad)
             );
             const outline = pointPath.simplify(0).bSplines().simplify(0);
             return outline.toString();

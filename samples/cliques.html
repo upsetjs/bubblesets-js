@@ -69,11 +69,11 @@
           const y = nodes[ix][1] - size * 0.5 - 5;
           const width = size + 10;
           const height = size + 10;
-          return new BubbleSets.Rectangle(x, y, width, height);
+          return BubbleSets.rect(x, y, width, height);
         }
 
         function ixsToEdge(edge) {
-          return new BubbleSets.Line(nodes[edge[0]][0], nodes[edge[0]][1], nodes[edge[1]][0], nodes[edge[1]][1]);
+          return BubbleSets.line(nodes[edge[0]][0], nodes[edge[0]][1], nodes[edge[1]][0], nodes[edge[1]][1]);
         }
 
         function getRectangleSets(rects, others) {

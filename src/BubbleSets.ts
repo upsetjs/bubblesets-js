@@ -6,6 +6,7 @@ import { Point } from './model/Point';
 import { PointList } from './model/PointList';
 import { Rectangle } from './model/Rectangle';
 import { PointPath } from './PointPath';
+import { ILine, IRectangle } from './interfaces';
 
 export interface IOutlineOptions {
   maxRoutingIterations?: number;
@@ -32,39 +33,41 @@ const defaultOptions: Required<IOutlineOptions> = {
 };
 
 export function createOutline(
-  memberItems: ReadonlyArray<Rectangle>,
-  nonMembers: ReadonlyArray<Rectangle>,
-  edges: ReadonlyArray<Line> = [],
+  members: ReadonlyArray<IRectangle>,
+  nonMembers: ReadonlyArray<IRectangle> = [],
+  edges: ReadonlyArray<ILine> = [],
   options: IOutlineOptions = {}
 ) {
   const o = Object.assign({}, defaultOptions, options);
 
-  if (memberItems.length === 0) {
+  if (members.length === 0) {
     return new PointPath([]);
   }
+
+  const memberItems = members.map(Rectangle.from);
+  const nonMemberItems = nonMembers.map(Rectangle.from);
 
   let threshold = 1;
   let nodeInfluenceFactor = 1;
   let edgeInfluenceFactor = 1;
   let negativeNodeInfluenceFactor = -0.8;
 
+  // calculate and store virtual edges
+  const virtualEdges = calculateVirtualEdges(memberItems, nonMemberItems, o);
+
+  edges.forEach((e) => {
+    virtualEdges.push(Line.from(e));
+  });
   let activeRegion = memberItems[0].clone();
   memberItems.forEach((m) => {
     activeRegion.add(m);
   });
 
-  // calculate and store virtual edges
-  const virtualEdges = calculateVirtualEdges(memberItems, nonMembers, o);
-
-  edges.forEach((e) => {
-    virtualEdges.push(e);
-  });
   virtualEdges.forEach((l) => {
     activeRegion.add(l.asRect());
   });
-
   const padding = Math.max(o.edgeR1, o.nodeR1) + o.morphBuffer;
-  activeRegion = addPadding(activeRegion, padding);
+  activeRegion = Rectangle.from(addPadding(activeRegion, padding));
 
   const potentialArea = new Area(
     Math.ceil(activeRegion.width / o.pixelGroup),
@@ -114,7 +117,7 @@ export function createOutline(
 
     // calculate negative energy contribution for all other visible items within bounds
     if (negativeNodeInfluenceFactor) {
-      nonMembers.forEach((item) => {
+      nonMemberItems.forEach((item) => {
         // if item is within influence bounds, add potential
         if (activeRegion.intersects(item)) {
           // subtract influence
@@ -139,7 +142,7 @@ export function createOutline(
 
   // try to march, check if surface contains all items
   while (
-    !calculateContour(surface, activeRegion, memberItems, nonMembers, potentialArea, threshold, o) &&
+    !calculateContour(surface, activeRegion, memberItems, nonMemberItems, potentialArea, threshold, o) &&
     iterations < o.maxMarchingIterations
   ) {
     surface.clear();
@@ -802,15 +805,20 @@ function rerouteLine(rectangle: Rectangle, rerouteBuffer: number, intersections:
   return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
 }
 
-export function addPadding(r: Rectangle, radius: number): Rectangle;
-export function addPadding(r: ReadonlyArray<Rectangle>, radius: number): ReadonlyArray<Rectangle>;
+export function addPadding(r: IRectangle, padding: number): IRectangle;
+export function addPadding(r: ReadonlyArray<IRectangle>, padding: number): ReadonlyArray<IRectangle>;
 export function addPadding(
-  r: Rectangle | ReadonlyArray<Rectangle>,
-  radius: number
-): Rectangle | ReadonlyArray<Rectangle> {
-  const map = (r: Rectangle) => new Rectangle(r.x - radius, r.y - radius, r.width + 2 * radius, r.height + 2 * radius);
+  r: IRectangle | ReadonlyArray<IRectangle>,
+  padding: number
+): IRectangle | ReadonlyArray<IRectangle> {
+  const map = (r: IRectangle) => ({
+    x: r.x - padding,
+    y: r.y - padding,
+    width: r.width + 2 * padding,
+    height: r.height + 2 * padding,
+  });
   if (Array.isArray(r)) {
     return r.map(map);
   }
-  return map(r as Rectangle);
+  return map(r as IRectangle);
 }

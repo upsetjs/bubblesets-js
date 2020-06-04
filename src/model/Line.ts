@@ -14,6 +14,10 @@ export class Line {
     return new Rectangle(minX, minY, maxX - minX, maxY - minY);
   }
 
+  static from(l: { x1: number; y1: number; x2: number; y2: number }) {
+    return new Line(l.x1, l.y1, l.x2, l.y2);
+  }
+
   // whether an infinite line to positive x from the point p will cut through the line
   cuts(p: Point) {
     if (this.y1 === this.y2) {

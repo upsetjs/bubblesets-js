@@ -1,5 +1,6 @@
 import { Point } from './Point';
 import { Line } from './Line';
+import { IRectangle } from '../interfaces';
 
 export class Rectangle {
   constructor(public x: number, public y: number, public width: number, public height: number) {}
@@ -19,15 +20,19 @@ export class Rectangle {
     return this.y + this.height / 2;
   }
 
+  static from(r: IRectangle) {
+    return new Rectangle(r.x, r.y, r.width, r.height);
+  }
+
   clone() {
     return new Rectangle(this.x, this.y, this.width, this.height);
   }
 
-  add(that: Rectangle) {
+  add(that: IRectangle) {
     const x = Math.min(this.x, that.x);
     const y = Math.min(this.y, that.y);
-    const x2 = Math.max(this.x2, that.x2);
-    const y2 = Math.max(this.y2, that.y2);
+    const x2 = Math.max(this.x2, that.x + that.width);
+    const y2 = Math.max(this.y2, that.y + that.height);
     this.x = x;
     this.y = y;
     this.width = x2 - x;
