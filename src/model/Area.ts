@@ -69,7 +69,11 @@ export class Area {
       const sRow = base + j * w;
       const tRow = j * aw;
       for (let i = 0; i < area.width; i++) {
-        this.pixels[i + sRow] += factor * area.pixels[i + tRow];
+        const v = area.pixels[i + tRow];
+        if (v === 0) {
+          continue;
+        }
+        this.pixels[i + sRow] += factor * v;
       }
     }
   }

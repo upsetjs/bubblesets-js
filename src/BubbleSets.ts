@@ -66,6 +66,9 @@ export function createOutline(
   const nonMemberAreas = nonMembersInRegion.map((rect) =>
     createRectangleInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.nodeR1, rect)
   );
+  const edgeAreas = edgeItems.map((rect) =>
+    createLineInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.edgeR1, rect)
+  );
 
   let threshold = 1;
   let nodeInfluenceFactor = 1;
@@ -90,16 +93,12 @@ export function createOutline(
       }
     }
 
-    if (edgeInfluenceFactor !== 0 && edgeItems.length > 0) {
+    if (edgeInfluenceFactor !== 0) {
       // add the influence of all the virtual edges
-      calculateLinesInfluence(
-        o.pixelGroup,
-        potentialArea,
-        edgeInfluenceFactor / edgeInfA,
-        o.edgeR1,
-        edgeItems,
-        activeRegion
-      );
+      const f = edgeInfluenceFactor / edgeInfA;
+      for (const line of edgeAreas) {
+        potentialArea.incArea(line, f);
+      }
     }
 
     // calculate negative energy contribution for all other visible items within bounds
@@ -513,98 +512,17 @@ function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, tes
   }, 0);
 }
 
-function calculateLinesInfluence(
+function createLineInfluenceArea(
+  activeRegion: Rectangle,
   pixelGroup: number,
   potentialArea: Area,
-  influenceFactor: number,
   r1: number,
-  lines: Line[],
-  activeRegion: Rectangle
+  line: Line
 ) {
-  lines.forEach((line) => {
-    const lr = line.asRect();
-    // only traverse the plausible area
-    const startX = potentialArea.boundX(Math.floor((lr.x - r1 - activeRegion.x) / pixelGroup));
-    const startY = potentialArea.boundY(Math.floor((lr.y - r1 - activeRegion.y) / pixelGroup));
-    const endX = potentialArea.boundX(Math.ceil((lr.x2 + r1 - activeRegion.x) / pixelGroup));
-    const endY = potentialArea.boundY(Math.ceil((lr.y2 + r1 - activeRegion.y) / pixelGroup));
-    // for every point in active part of potentialArea, calculate distance to nearest point on line and add influence
-    for (let y = startY; y < endY; y++) {
-      for (let x = startX; x < endX; x++) {
-        // if we are adding negative energy, skip if not already
-        // positive; positives have already been added first, and adding
-        // negative to <=0 will have no affect on surface
-        if (influenceFactor < 0 && potentialArea.get(x, y) <= 0) {
-          continue;
-        }
-        // convert back to screen coordinates
-        const tempX = x * pixelGroup + activeRegion.x;
-        const tempY = y * pixelGroup + activeRegion.y;
-        const minDistanceSq = line.ptSegDistSq(tempX, tempY);
-        // only influence if less than r1
-        if (minDistanceSq < r1 * r1) {
-          const mdr = Math.sqrt(minDistanceSq) - r1;
-          potentialArea.inc(x, y, influenceFactor * mdr * mdr);
-        }
-      }
-    }
-  });
-}
-
-function getRectDistSq(rect: Rectangle, tempX: number, tempY: number) {
-  // test current point to see if it is inside rectangle
-  if (!rect.containsPt(tempX, tempY)) {
-    // which edge of rectangle is closest
-    const outcode = rect.outcode(tempX, tempY);
-    // top
-    if ((outcode & Rectangle.OUT_TOP) === Rectangle.OUT_TOP) {
-      // and left
-      if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
-        // linear distance from upper left corner
-        return Point.ptsDistanceSq(tempX, tempY, rect.x, rect.y);
-      } else {
-        // and right
-        if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
-          // linear distance from upper right corner
-          return Point.ptsDistanceSq(tempX, tempY, rect.x2, rect.y);
-        } else {
-          // distance from top line segment
-          return (rect.y - tempY) * (rect.y - tempY);
-        }
-      }
-    } else {
-      // bottom
-      if ((outcode & Rectangle.OUT_BOTTOM) === Rectangle.OUT_BOTTOM) {
-        // and left
-        if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
-          // linear distance from lower left corner
-          return Point.ptsDistanceSq(tempX, tempY, rect.x, rect.y2);
-        } else {
-          // and right
-          if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
-            // linear distance from lower right corner
-            return Point.ptsDistanceSq(tempX, tempY, rect.x2, rect.y2);
-          } else {
-            // distance from bottom line segment
-            return (tempY - rect.y2) * (tempY - rect.y2);
-          }
-        }
-      } else {
-        // left only
-        if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
-          // linear distance from left edge
-          return (rect.x - tempX) * (rect.x - tempX);
-        } else {
-          // right only
-          if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
-            // linear distance from right edge
-            return (tempX - rect.x2) * (tempX - rect.x2);
-          }
-        }
-      }
-    }
-  }
-  return 0;
+  const lr = line.asRect();
+  return createRectangleInfluenceArea(activeRegion, pixelGroup, potentialArea, r1, lr, (x, y) =>
+    line.ptSegDistSq(x, y)
+  );
 }
 
 function createRectangleInfluenceArea(
@@ -612,7 +530,8 @@ function createRectangleInfluenceArea(
   pixelGroup: number,
   potentialArea: Area,
   r1: number,
-  rect: Rectangle
+  rect: Rectangle,
+  distanceFunction?: (x: number, y: number) => number
 ) {
   const ri2 = r1 * r1;
   // find the affected subregion of potentialArea
@@ -630,7 +549,7 @@ function createRectangleInfluenceArea(
       // convert back to screen coordinates
       const tempX = x * pixelGroup + activeRegion.x;
       const tempY = y * pixelGroup + activeRegion.y;
-      const distanceSq = getRectDistSq(rect, tempX, tempY);
+      const distanceSq = distanceFunction ? distanceFunction(tempX, tempY) : rect.rectDistSq(tempX, tempY);
       // only influence if less than r1
       if (distanceSq < ri2) {
         const dr = Math.sqrt(distanceSq) - r1;
