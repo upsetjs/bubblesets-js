@@ -34,7 +34,6 @@
 
         var size = 10;
         var pad = 5;
-        var bubbles = new BubbleSets.BubbleSet();
 
         // nodes [ x, y ]
         var nodes = [
@@ -102,11 +101,8 @@
 
         function doBubbles(rects, others, elem) {
           var [a, b] = getRectangleSets(rects, others);
-          var pointPath = bubbles.createOutline(a, b, getEdges(rects));
-          const outline = pointPath
-            .apply(BubbleSets.shapeSimplifier(0))
-            .apply(BubbleSets.bSplineShapeGenerator())
-            .apply(BubbleSets.shapeSimplifier(0));
+          var pointPath = BubbleSets.createOutline(a, b, getEdges(rects));
+          const outline = pointPath.simplify().bSplines().simplify(0);
 
           elem.setAttribute('d', outline.toString());
         }

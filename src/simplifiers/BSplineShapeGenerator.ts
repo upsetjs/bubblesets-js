@@ -40,15 +40,15 @@ export function bSplineShapeGenerator(granularity = 6.0) {
       return path;
     }
     // actual b-spline calculation
-    const res = new PointPath();
+    const res: [number, number][] = [];
     const closed = path.closed;
     const count = path.length + ORDER - 1 + (closed ? 0 : 2);
-    res.add(calcPoint(path, START_INDEX - (closed ? 0 : 2), 0));
+    res.push(calcPoint(path, START_INDEX - (closed ? 0 : 2), 0));
     for (let ix = START_INDEX - (closed ? 0 : 2); ix < count; ix++) {
       for (let k = 1; k <= granularity; k++) {
-        res.add(calcPoint(path, ix, k / granularity));
+        res.push(calcPoint(path, ix, k / granularity));
       }
     }
-    return res;
+    return new PointPath(res);
   };
 }

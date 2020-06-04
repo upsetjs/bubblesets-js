@@ -14,7 +14,6 @@
     <svg id="main" style="width: 90vw; height: 80vh; margin: 0 auto; border: 1px solid black;"></svg>
 
     <script>
-      const bubbles = new BubbleSets.BubbleSet();
       const rectanglesA = [];
       const rectanglesB = [];
       const main = d3.select('#main');
@@ -28,11 +27,8 @@
       }
 
       function updateOutline(rectangles, otherRectangles, color, path) {
-        const pointPath = bubbles.createOutline(rectangles, otherRectangles, []);
-        const outline = pointPath
-          .apply(BubbleSets.shapeSimplifier(0))
-          .apply(BubbleSets.bSplineShapeGenerator())
-          .apply(BubbleSets.shapeSimplifier(0));
+        const pointPath = BubbleSets.createOutline(rectangles, otherRectangles, []);
+        const outline = pointPath.simplify(0).bSplines().simplify(0);
         path.attr('d', outline);
         path.style('opacity', 0.5).style('fill', color).style('stroke', 'black');
       }

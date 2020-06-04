@@ -47,10 +47,9 @@
 
         setTimeout(function () {
           var pad = 5;
-          var bubbles = new BubbleSets.BubbleSet();
 
           function doRun() {
-            var pointPath = bubbles.createOutline(
+            var pointPath = BubbleSets.createOutline(
               rectanglesA.map(
                 (r) => new BubbleSets.Rectangle(r.x - pad, r.y - pad, r.width + 2 * pad, r.height + 2 * pad)
               ),
@@ -59,10 +58,7 @@
               ),
               []
             );
-            const outline = pointPath
-              .apply(BubbleSets.shapeSimplifier(0))
-              .apply(BubbleSets.bSplineShapeGenerator())
-              .apply(BubbleSets.shapeSimplifier(0));
+            const outline = pointPath.simplify(0).bSplines().simplify(0);
             return outline.toString();
           }
 

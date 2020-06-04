@@ -50,16 +50,17 @@ export function shapeSimplifier(tolerance = 0.0) {
     if (tolerance < 0 || path.length < 3) {
       return path;
     }
-    const states: State[] = [];
+    const points: [number, number][] = [];
     let start = 0;
+    const toleranceSquared = tolerance * tolerance;
     while (start < path.length) {
       var s = new State(path, start);
-      while (s.canTakeNext(tolerance * tolerance)) {
+      while (s.canTakeNext(toleranceSquared)) {
         s.advanceEnd();
       }
       start = s.end;
-      states.push(s);
+      points.push(s.startPoint());
     }
-    return new PointPath(states.map((s) => s.startPoint()));
+    return new PointPath(points);
   };
 }
