@@ -14,6 +14,14 @@ export class Area {
     this.pixels.fill(0);
   }
 
+  get x2() {
+    return this.x + this.width;
+  }
+
+  get y2() {
+    return this.y + this.height;
+  }
+
   static fromRegion(rect: IRectangle, pixelGroup: number) {
     return new Area(
       pixelGroup,

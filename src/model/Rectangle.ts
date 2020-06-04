@@ -68,6 +68,7 @@ export class Rectangle {
     }
     return that.x2 > this.x && that.y2 > this.y && that.x < this.x2 && that.y < this.y2;
   }
+
   intersectsLine(line: Line) {
     let x1 = line.x1;
     let y1 = line.y1;
