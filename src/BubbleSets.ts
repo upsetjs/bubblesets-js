@@ -2,11 +2,10 @@ import { Area } from './model/Area';
 import { EState, fractionToLineCenter, Intersection, testIntersection } from './model/Intersection';
 import { Line } from './model/Line';
 import { marchingSquares } from './model/MarchingSquares';
-import { Point } from './model/Point';
-import { PointList } from './model/PointList';
 import { Rectangle } from './model/Rectangle';
-import { PointPath } from './PointPath';
+import { PointPath, Point } from './PointPath';
 import { ILine, IRectangle } from './interfaces';
+import { boundingBox, doublePointsEqual, ptsDistanceSq } from './utils';
 
 export interface IOutlineOptions {
   maxRoutingIterations?: number;
@@ -54,21 +53,12 @@ export function createOutline(
   }
   const activeRegion = computeActiveRegion(memberItems, edgeItems, o);
 
-  const potentialArea = new Area(
-    Math.ceil(activeRegion.width / o.pixelGroup),
-    Math.ceil(activeRegion.height / o.pixelGroup)
-  );
+  const potentialArea = Area.fromRegion(activeRegion, o.pixelGroup);
 
-  const memberAreas = memberItems.map((rect) =>
-    createRectangleInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.nodeR1, rect)
-  );
+  const memberAreas = memberItems.map((rect) => createRectangleInfluenceArea(rect, potentialArea, o.nodeR1));
   const nonMembersInRegion = nonMemberItems.filter((item) => activeRegion.intersects(item));
-  const nonMemberAreas = nonMembersInRegion.map((rect) =>
-    createRectangleInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.nodeR1, rect)
-  );
-  const edgeAreas = edgeItems.map((rect) =>
-    createLineInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.edgeR1, rect)
-  );
+  const nonMemberAreas = nonMembersInRegion.map((rect) => createRectangleInfluenceArea(rect, potentialArea, o.nodeR1));
+  const edgeAreas = edgeItems.map((line) => createLineInfluenceArea(line, potentialArea, o.edgeR1));
 
   let threshold = 1;
   let nodeInfluenceFactor = 1;
@@ -79,10 +69,11 @@ export function createOutline(
   // using inverse a for numerical stability
   const nodeInfA = nodeRDiff * nodeRDiff;
   const edgeInfA = (o.edgeR0 - o.edgeR1) * (o.edgeR0 - o.edgeR1);
-  const estLength = (Math.floor(activeRegion.width) + Math.floor(activeRegion.height)) * 2;
-  const surface = new PointList(estLength);
 
-  const fillPotentialArea = () => {
+  // try to march, check if surface contains all items
+  for (let iterations = 0; iterations < o.maxMarchingIterations; iterations++) {
+    potentialArea.clear();
+
     // add all positive energy (included items) first, as negative energy
     // (morphing) requires all positives to be already set
     if (nodeInfluenceFactor !== 0) {
@@ -109,19 +100,19 @@ export function createOutline(
         potentialArea.incArea(item, f);
       }
     }
-  };
 
-  // add the aggregate and all it's members and virtual edges
-  fillPotentialArea();
+    // compute contour
+    const contour = marchingSquares(potentialArea, threshold);
+    if (contour) {
+      // check if we hit all members
+      const sampled = sampleContour(contour, o);
+      if (coversAllMembers(memberItems, sampled)) {
+        // found a valid path
+        return sampled;
+      }
+    }
 
-  // try to march, check if surface contains all items
-  let iterations = 0;
-  while (
-    iterations < o.maxMarchingIterations &&
-    !calculateContour(surface, activeRegion, memberItems, nonMemberItems, potentialArea, threshold, o)
-  ) {
-    surface.clear();
-    iterations++;
+    // prepare for next iteration
 
     // reduce negative influences first; this will allow the surface to
     // pass without making it fatter all around (which raising the threshold does)
@@ -135,10 +126,9 @@ export function createOutline(
     } else {
       break;
     }
-    potentialArea.clear();
-    fillPotentialArea();
   }
-  return postProcessSurface(surface, activeRegion, o);
+  // cannot find a solution
+  return new PointPath([]);
 }
 
 function computeActiveRegion(
@@ -158,141 +148,37 @@ function computeActiveRegion(
   return activeRegion;
 }
 
-function postProcessSurface(surface: PointList, activeRegion: IRectangle, o: Required<IOutlineOptions>) {
+function sampleContour(contour: PointPath, o: Required<IOutlineOptions>) {
   // start with global SKIP value, but decrease skip amount if there aren't enough points in the surface
   let skip = o.skip;
   // prepare viz attribute array
-  let size = surface.length;
+  let size = contour.length;
 
   if (skip > 1) {
-    size = Math.floor(surface.length / skip);
+    size = Math.floor(contour.length / skip);
     // if we reduced too much (fewer than three points in reduced surface) reduce skip and try again
     while (size < 3 && skip > 1) {
       skip -= 1;
-      size = Math.floor(surface.length / skip);
+      size = Math.floor(contour.length / skip);
     }
   }
 
-  // add the offset of the active area to the coordinates
-  const xCorner = activeRegion.x;
-  const yCorner = activeRegion.y;
-
-  const finalHull: [number, number][] = [];
+  const finalHull: Point[] = [];
   // copy hull values
   for (let i = 0, j = 0; j < size; j++, i += skip) {
-    finalHull.push([surface.get(i).x + xCorner, surface.get(i).y + yCorner]);
+    finalHull.push(contour.get(i));
   }
   return new PointPath(finalHull);
 }
 
-function calculateContour(
-  contour: PointList,
-  bounds: Rectangle,
-  members: ReadonlyArray<Rectangle>,
-  nonMembers: ReadonlyArray<Rectangle>,
-  potentialArea: Area,
-  threshold: number,
-  o: Required<IOutlineOptions>
-) {
-  // if no surface could be found stop
-  if (!marchingSquares(contour, potentialArea, o.pixelGroup, threshold)) {
+function coversAllMembers(members: ReadonlyArray<{ cx: number; cy: number }>, path: PointPath) {
+  const bb = boundingBox(path);
+  if (!bb) {
     return false;
   }
-  return testContainment(contour, bounds, members, nonMembers, o)[0];
-}
-
-function testContainment(
-  contour: PointList,
-  bounds: Rectangle,
-  members: ReadonlyArray<Rectangle>,
-  nonMembers: ReadonlyArray<Rectangle>,
-  o: Required<IOutlineOptions>
-) {
-  // precise bounds checking
-  // copy hull values
-  const g: Point[] = [];
-  let gbounds: Rectangle | null = null;
-
-  function contains(g: Point[], p: Point) {
-    let crossings = 0;
-    if (g.length === 0) {
-      return crossings % 2 == 1;
-    }
-    const first = g[0]!;
-    const line = new Line(first.x, first.y, first.x, first.y);
-    g.slice(1).forEach((cur) => {
-      line.x1 = line.x2;
-      line.y1 = line.y2;
-      line.x2 = cur.x;
-      line.y2 = cur.y;
-      if (line.cuts(p)) {
-        crossings++;
-      }
-    });
-
-    line.x1 = line.x2;
-    line.y1 = line.y2;
-    line.x2 = first.x;
-    line.y2 = first.y;
-    if (line.cuts(p)) {
-      crossings++;
-    }
-    return crossings % 2 == 1;
-  }
-
-  // start with global SKIP value, but decrease skip amount if there
-  // aren't enough points in the surface
-  let skip = o.skip;
-  // prepare viz attribute array
-  let size = contour.length;
-  if (skip > 1) {
-    size = contour.length / skip;
-    // if we reduced too much (fewer than three points in reduced surface) reduce skip and try again
-    while (size < 3 && skip > 1) {
-      skip--;
-      size = contour.length / skip;
-    }
-  }
-
-  let xcorner = bounds.x;
-  let ycorner = bounds.y;
-
-  // simulate the surface we will eventually draw, using straight segments (approximate, but fast)
-  for (let i = 0; i < size - 1; i++) {
-    const px = contour.get(i * skip).x + xcorner;
-    const py = contour.get(i * skip).y + ycorner;
-    const r = new Rectangle(px, py, 0, 0);
-    if (!gbounds) {
-      gbounds = r;
-    } else {
-      gbounds.add(r);
-    }
-    g.push(new Point(px, py));
-  }
-
-  let containsAll = true;
-  let containsExtra = false;
-
-  if (gbounds != null) {
-    members.forEach((item) => {
-      const p = new Point(item.cx, item.cy);
-      // check rough bounds
-      containsAll = containsAll && gbounds!.containsPt(item.cx, item.cy);
-      // check precise bounds if rough passes
-      containsAll = containsAll && contains(g, p);
-    });
-    nonMembers.forEach((item) => {
-      const p = new Point(item.cx, item.cy);
-      // check rough bounds
-      if (gbounds!.containsPt(item.cx, item.cy)) {
-        // check precise bounds if rough passes
-        if (contains(g, p)) {
-          containsExtra = true;
-        }
-      }
-    });
-  }
-  return [containsAll, containsExtra];
+  return members.every((member) => {
+    return bb.containsPt(member.cx, member.cy) && path.withinArea(member.cx, member.cy);
+  });
 }
 
 function calculateVirtualEdges(
@@ -323,11 +209,11 @@ function connectItem(
   const scannedLines: Line[] = [];
   const linesToCheck: Line[] = [];
 
-  let itemCenter = new Point(item.cx, item.cy);
+  let itemCenter = point(item.cx, item.cy);
   let minLengthSq = Number.POSITIVE_INFINITY;
   // discover the nearest neighbor with minimal interference items
   const closestNeighbor = visited.reduce((closestNeighbor, neighborItem) => {
-    const distanceSq = Point.ptsDistanceSq(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
+    const distanceSq = ptsDistanceSq(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
 
     const completeLine = new Line(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
     // augment distance by number of interfering items
@@ -474,10 +360,10 @@ function isPointInRectangles(point: Point, rects: ReadonlyArray<Rectangle>) {
 
 function pointExists(pointToCheck: Point, lines: ReadonlyArray<Line>) {
   return lines.some((checkEndPointsLine) => {
-    if (Point.doublePointsEqual(checkEndPointsLine.x1, checkEndPointsLine.y1, pointToCheck.x, pointToCheck.y, 1e-3)) {
+    if (doublePointsEqual(checkEndPointsLine.x1, checkEndPointsLine.y1, pointToCheck.x, pointToCheck.y, 1e-3)) {
       return true;
     }
-    if (Point.doublePointsEqual(checkEndPointsLine.x2, checkEndPointsLine.y2, pointToCheck.x, pointToCheck.y, 1e-3)) {
+    if (doublePointsEqual(checkEndPointsLine.x2, checkEndPointsLine.y2, pointToCheck.x, pointToCheck.y, 1e-3)) {
       return true;
     }
     return false;
@@ -512,52 +398,51 @@ function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, tes
   }, 0);
 }
 
-function createLineInfluenceArea(
-  activeRegion: Rectangle,
-  pixelGroup: number,
-  potentialArea: Area,
-  r1: number,
-  line: Line
-) {
+function createLineInfluenceArea(line: Line, potentialArea: Area, r1: number) {
   const lr = line.asRect();
-  return createRectangleInfluenceArea(activeRegion, pixelGroup, potentialArea, r1, lr, (x, y) =>
-    line.ptSegDistSq(x, y)
-  );
+  return createRectangleInfluenceArea(lr, potentialArea, r1, (x, y) => line.ptSegDistSq(x, y));
 }
 
 function createRectangleInfluenceArea(
-  activeRegion: Rectangle,
-  pixelGroup: number,
+  rect: Rectangle,
   potentialArea: Area,
   r1: number,
-  rect: Rectangle,
   distanceFunction?: (x: number, y: number) => number
 ) {
   const ri2 = r1 * r1;
+
+  const scaled = potentialArea.scale(rect);
+  const padded = potentialArea.addPadding(scaled, r1);
+  // within the rect ... full ri2
+  // outside rect ... depends on distance
+  // cttc
+  // lffr
+  // lffr
+  // cbbc
+  const area = new Area(potentialArea.pixelGroup, padded.width, padded.height, padded.x, padded.y);
+
   // find the affected subregion of potentialArea
-  const startX = potentialArea.boundX(Math.floor((rect.x - r1 - activeRegion.x) / pixelGroup));
-  const startY = potentialArea.boundY(Math.floor((rect.y - r1 - activeRegion.y) / pixelGroup));
-  const endX = potentialArea.boundX(Math.ceil((rect.x2 + r1 - activeRegion.x) / pixelGroup));
-  const endY = potentialArea.boundY(Math.ceil((rect.y2 + r1 - activeRegion.y) / pixelGroup));
   // for every point in active subregion of potentialArea, calculate
   // distance to nearest point on rectangle and add influence
-  const areaWidth = endX - startX;
-  const areaHeight = endY - startY;
-  const area = new Area(areaWidth, areaHeight, startX, startY);
-  for (let y = startY; y < endY; y++) {
-    for (let x = startX; x < endX; x++) {
+
+  for (let y = 0; y < padded.height; y++) {
+    for (let x = 0; x < padded.width; x++) {
       // convert back to screen coordinates
-      const tempX = x * pixelGroup + activeRegion.x;
-      const tempY = y * pixelGroup + activeRegion.y;
+      const tempX = potentialArea.invertScaleX(padded.x + x);
+      const tempY = potentialArea.invertScaleY(padded.y + y);
       const distanceSq = distanceFunction ? distanceFunction(tempX, tempY) : rect.rectDistSq(tempX, tempY);
       // only influence if less than r1
       if (distanceSq < ri2) {
         const dr = Math.sqrt(distanceSq) - r1;
-        area.set(x - startX, y - startY, dr * dr);
+        area.set(x, y, dr * dr);
       }
     }
   }
   return area;
+}
+
+function point(x: number, y: number) {
+  return { x, y };
 }
 
 function rerouteLine(
@@ -577,10 +462,10 @@ function rerouteLine(
     if (leftIntersect.state === EState.POINT) {
       if (topIntersect.state === EState.POINT)
         // triangle, must go around top left
-        return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
       if (bottomIntersect.state === EState.POINT)
         // triangle, must go around bottom left
-        return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
       // else through left to right, calculate areas
       const totalArea = rectangle.area;
       // top area
@@ -589,25 +474,25 @@ function rerouteLine(
         // go around top (the side which would make a greater movement)
         if (leftIntersect.y > rightIntersect.y)
           // top left
-          return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+          return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
         // top right
-        return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
       }
       // go around bottom
       if (leftIntersect.y < rightIntersect.y)
         // bottom left
-        return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
       // bottom right
-      return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
     }
     // right side
     if (rightIntersect.state === EState.POINT) {
       if (topIntersect.state === EState.POINT)
         // triangle, must go around top right
-        return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
       if (bottomIntersect.state === EState.POINT)
         // triangle, must go around bottom right
-        return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
     }
     // else through top to bottom, calculate areas
     const totalArea = rectangle.height * rectangle.width;
@@ -616,25 +501,25 @@ function rerouteLine(
       // go around left
       if (topIntersect.x > bottomIntersect.x)
         // top left
-        return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
       // bottom left
-      return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
     }
     // go around right
     if (topIntersect.x < bottomIntersect.x)
       // top right
-      return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
     // bottom right
-    return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+    return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
   }
   // wrap around opposite (usually because the first move caused a problem)
   if (leftIntersect.state === EState.POINT) {
     if (topIntersect.state === EState.POINT)
       // triangle, must go around bottom right
-      return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
     if (bottomIntersect.state === EState.POINT)
       // triangle, must go around top right
-      return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
     // else through left to right, calculate areas
     const totalArea = rectangle.height * rectangle.width;
     const topArea = rectangle.width * ((leftIntersect.y - rectangle.y + (rightIntersect.y - rectangle.y)) * 0.5);
@@ -642,24 +527,24 @@ function rerouteLine(
       // go around bottom (the side which would make a lesser movement)
       if (leftIntersect.y > rightIntersect.y)
         // bottom right
-        return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
       // bottom left
-      return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
     }
     // go around top
     if (leftIntersect.y < rightIntersect.y)
       // top right
-      return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
     // top left
-    return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+    return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
   }
   if (rightIntersect.state === EState.POINT) {
     if (topIntersect.state === EState.POINT)
       // triangle, must go around bottom left
-      return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
     if (bottomIntersect.state === EState.POINT)
       // triangle, must go around top left
-      return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
   }
   // else through top to bottom, calculate areas
   const totalArea = rectangle.height * rectangle.width;
@@ -668,16 +553,16 @@ function rerouteLine(
     // go around right
     if (topIntersect.x > bottomIntersect.x)
       // bottom right
-      return new Point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
     // top right
-    return new Point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+    return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
   }
   // go around left
   if (topIntersect.x < bottomIntersect.x)
     // bottom left
-    return new Point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+    return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
   // top left
-  return new Point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+  return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
 }
 
 export function addPadding(r: IRectangle, padding: number): IRectangle;

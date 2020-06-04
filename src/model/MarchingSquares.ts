@@ -1,13 +1,15 @@
 import { PointList } from './PointList';
 import { Area } from './Area';
-import { Point } from './Point';
 
 const N = 0;
 const S = 1;
 const E = 2;
 const W = 3;
 
-export function marchingSquares(contour: PointList, potentialArea: Area, step: number, threshold: number) {
+export function marchingSquares(potentialArea: Area, threshold: number) {
+  const estLength = (Math.floor(potentialArea.width) + Math.floor(potentialArea.height)) * 2;
+  const contour = new PointList(estLength);
+
   function updateDir(x: number, y: number, dir: number, res: number) {
     const v = potentialArea.get(x, y);
     if (Number.isNaN(v)) {
@@ -41,7 +43,7 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
     let y = yPos;
     for (;;) {
       // iterative version of end recursion
-      const p = new Point(x * step, y * step);
+      const p = { x: potentialArea.invertScaleX(x), y: potentialArea.invertScaleY(y) };
       // check if we're back where we started
       if (contour.contains(p)) {
         if (!contour.isFirst(p)) {
@@ -114,10 +116,10 @@ export function marchingSquares(contour: PointList, potentialArea: Area, step: n
     for (let y = 0; y < potentialArea.height; y++) {
       if (potentialArea.get(x, y) > threshold && getState(x, y) != 15) {
         if (doMarch(x, y)) {
-          return true;
+          return contour.path();
         }
       }
     }
   }
-  return false;
+  return null;
 }

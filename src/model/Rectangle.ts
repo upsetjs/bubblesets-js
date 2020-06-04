@@ -1,6 +1,6 @@
 import { Line } from './Line';
 import { IRectangle } from '../interfaces';
-import { Point } from './Point';
+import { ptsDistanceSq } from '../utils';
 
 export class Rectangle {
   constructor(public x: number, public y: number, public width: number, public height: number) {}
@@ -33,6 +33,17 @@ export class Rectangle {
     const y = Math.min(this.y, that.y);
     const x2 = Math.max(this.x2, that.x + that.width);
     const y2 = Math.max(this.y2, that.y + that.height);
+    this.x = x;
+    this.y = y;
+    this.width = x2 - x;
+    this.height = y2 - y;
+  }
+
+  addPoint(p: { x: number; y: number }) {
+    const x = Math.min(this.x, p.x);
+    const y = Math.min(this.y, p.y);
+    const x2 = Math.max(this.x2, p.x);
+    const y2 = Math.max(this.y2, p.y);
     this.x = x;
     this.y = y;
     this.width = x2 - x;
@@ -129,12 +140,12 @@ export class Rectangle {
       // and left
       if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
         // linear distance from upper left corner
-        return Point.ptsDistanceSq(tempX, tempY, this.x, this.y);
+        return ptsDistanceSq(tempX, tempY, this.x, this.y);
       }
       if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
         // and right
         // linear distance from upper right corner
-        return Point.ptsDistanceSq(tempX, tempY, this.x2, this.y);
+        return ptsDistanceSq(tempX, tempY, this.x2, this.y);
       }
       // distance from top line segment
       return (this.y - tempY) * (this.y - tempY);
@@ -144,12 +155,12 @@ export class Rectangle {
       // and left
       if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
         // linear distance from lower left corner
-        return Point.ptsDistanceSq(tempX, tempY, this.x, this.y2);
+        return ptsDistanceSq(tempX, tempY, this.x, this.y2);
       }
       // and right
       if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
         // linear distance from lower right corner
-        return Point.ptsDistanceSq(tempX, tempY, this.x2, this.y2);
+        return ptsDistanceSq(tempX, tempY, this.x2, this.y2);
       }
       // distance from bottom line segment
       return (tempY - this.y2) * (tempY - this.y2);

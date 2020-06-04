@@ -1,21 +1,21 @@
-import { Point } from './Point';
-import { PointPath } from '../PointPath';
+import { PointPath, Point } from '../PointPath';
 
 export class PointList {
   private count = 0;
   private readonly arr: Point[] = [];
   private readonly set = new Set<string>();
 
-  constructor(size: number) {
+  constructor(size = 0) {
     this.arr.length = size; // pre-allocating
   }
 
   add(p: Point) {
-    this.set.add(p.toString());
+    this.set.add(`${p.x}x${p.y}`);
     this.arr[this.count++] = p;
   }
+
   contains(p: Point) {
-    return this.set.has(p.toString());
+    return this.set.has(`${p.x}x${p.y}`);
   }
 
   isFirst(p: Point) {
@@ -27,7 +27,7 @@ export class PointList {
   }
 
   path() {
-    return new PointPath(this.arr.slice(0, this.count).map((p) => p.p));
+    return new PointPath(this.arr.slice(0, this.count));
   }
 
   clear() {

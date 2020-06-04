@@ -1,6 +1,7 @@
 import { shapeSimplifier, bSplineShapeGenerator } from './simplifiers';
+import { Line } from './model';
 
-export declare type Point = [number, number];
+export declare type Point = { x: number; y: number };
 
 export class PointPath {
   readonly points: ReadonlyArray<Point>;
@@ -33,7 +34,7 @@ export class PointPath {
     }
     let r = 'M';
     for (const p of points) {
-      r += `${p[0]},${p[1]} L`;
+      r += `${p.x},${p.y} L`;
     }
     r = r.slice(0, -1);
     if (this.closed) {
@@ -49,10 +50,10 @@ export class PointPath {
     }
     ctx.beginPath();
 
-    ctx.moveTo(points[0][0], points[0][1]);
+    ctx.moveTo(points[0].x, points[0].y);
 
     for (const p of points) {
-      ctx.lineTo(p[0], p[1]);
+      ctx.lineTo(p.x, p.y);
     }
 
     if (this.closed) {
@@ -70,5 +71,37 @@ export class PointPath {
 
   apply(transformer: (path: PointPath) => PointPath) {
     return transformer(this);
+  }
+
+  withinArea(px: number, py: number) {
+    if (this.length === 0) {
+      return false;
+    }
+    let crossings = 0;
+    const first = this.points[0]!;
+    const line = new Line(first.x, first.y, first.x, first.y);
+
+    for (let i = 1; i < this.points.length; i++) {
+      const cur = this.points[i];
+      line.x1 = line.x2;
+      line.y1 = line.y2;
+      line.x2 = cur.x;
+      line.y2 = cur.y;
+
+      if (line.cuts(px, py)) {
+        crossings++;
+      }
+    }
+    // close to start
+    line.x1 = line.x2;
+    line.y1 = line.y2;
+    line.x2 = first.x;
+    line.y2 = first.y;
+
+    if (line.cuts(px, py)) {
+      crossings++;
+    }
+
+    return crossings % 2 == 1;
   }
 }

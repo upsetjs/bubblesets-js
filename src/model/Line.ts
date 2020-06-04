@@ -1,4 +1,3 @@
-import { Point } from './Point';
 import { linePtSegDistSq } from '../utils';
 import { Rectangle } from './Rectangle';
 
@@ -19,21 +18,21 @@ export class Line {
   }
 
   // whether an infinite line to positive x from the point p will cut through the line
-  cuts(p: Point) {
+  cuts(px: number, py: number) {
     if (this.y1 === this.y2) {
       return false;
     }
-    if ((p.y < this.y1 && p.y <= this.y2) || (p.y > this.y1 && p.y >= this.y2)) {
+    if ((py < this.y1 && py <= this.y2) || (py > this.y1 && py >= this.y2)) {
       return false;
     }
-    if (p.x > this.x1 && p.x >= this.x2) {
+    if (px > this.x1 && px >= this.x2) {
       return false;
     }
-    if (p.x < this.x1 && p.x <= this.x2) {
+    if (px < this.x1 && px <= this.x2) {
       return true;
     }
-    const cross = this.x1 + ((p.y - this.y1) * (this.x2 - this.x1)) / (this.y2 - this.y1);
-    return p.x <= cross;
+    const cross = this.x1 + ((py - this.y1) * (this.x2 - this.x1)) / (this.y2 - this.y1);
+    return px <= cross;
   }
 
   ptSegDistSq(x: number, y: number) {
