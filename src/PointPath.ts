@@ -1,18 +1,17 @@
 import { shapeSimplifier, bSplineShapeGenerator } from './simplifiers';
 import { Line } from './model';
-
-export declare type Point = { x: number; y: number };
+import { IPoint } from './interfaces';
 
 export class PointPath {
-  readonly points: ReadonlyArray<Point>;
+  readonly points: ReadonlyArray<IPoint>;
   readonly closed: boolean;
 
-  constructor(points: ReadonlyArray<Point> = [], closed = true) {
+  constructor(points: ReadonlyArray<IPoint> = [], closed = true) {
     this.points = points;
     this.closed = closed;
   }
 
-  get(index: number): Point {
+  get(index: number): IPoint {
     let i = index;
     const l = this.points.length;
     if (index < 0) {

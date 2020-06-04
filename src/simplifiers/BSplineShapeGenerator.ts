@@ -1,4 +1,5 @@
-import { PointPath, Point } from '../PointPath';
+import { PointPath } from '../PointPath';
+import { IPoint } from '../interfaces';
 
 function basicFunction(i: number, t: number) {
   // the basis function for a cubic B spline
@@ -22,7 +23,7 @@ export function bSplineShapeGenerator(granularity = 6.0) {
   const REL_END = 1;
   const REL_START = REL_END - ORDER;
 
-  function calcPoint(path: PointPath, i: number, t: number): Point {
+  function calcPoint(path: PointPath, i: number, t: number): IPoint {
     let px = 0.0;
     let py = 0.0;
     for (let j = REL_START; j <= REL_END; j++) {
@@ -40,7 +41,7 @@ export function bSplineShapeGenerator(granularity = 6.0) {
       return path;
     }
     // actual b-spline calculation
-    const res: Point[] = [];
+    const res: IPoint[] = [];
     const closed = path.closed;
     const count = path.length + ORDER - 1 + (closed ? 0 : 2);
     res.push(calcPoint(path, START_INDEX - (closed ? 0 : 2), 0));

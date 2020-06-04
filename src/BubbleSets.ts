@@ -1,11 +1,10 @@
-import { ILine, IRectangle } from './interfaces';
+import { ILine, IRectangle, IPoint } from './interfaces';
 import { calculateVirtualEdges } from './internal/routing';
 import { Area } from './model/Area';
 import { Line } from './model/Line';
 import { marchingSquares } from './model/MarchingSquares';
-import { Rectangle } from './model/Rectangle';
-import { Point, PointPath } from './PointPath';
-import { boundingBox } from './utils';
+import { Rectangle, boundingBox } from './model/Rectangle';
+import { PointPath } from './PointPath';
 import { addPadding } from './padding';
 import { createRectangleInfluenceArea, createLineInfluenceArea } from './internal/potentialAreas';
 
@@ -56,7 +55,7 @@ export function createOutline(
   const activeRegion = computeActiveRegion(memberItems, edgeItems, o);
   const nonMembersInRegion = nonMemberItems.filter((item) => activeRegion.intersects(item));
 
-  const potentialArea = Area.fromRegion(activeRegion, o.pixelGroup);
+  const potentialArea = Area.fromPixelRegion(activeRegion, o.pixelGroup);
 
   const memberAreas = memberItems.map((rect) => createRectangleInfluenceArea(rect, potentialArea, o.nodeR1));
   const nonMemberAreas = nonMembersInRegion.map((rect) => createRectangleInfluenceArea(rect, potentialArea, o.nodeR1));
@@ -165,7 +164,7 @@ function sampleContour(contour: PointPath, o: Required<IOutlineOptions>) {
     }
   }
 
-  const finalHull: Point[] = [];
+  const finalHull: IPoint[] = [];
   // copy hull values
   for (let i = 0, j = 0; j < size; j++, i += skip) {
     finalHull.push(contour.get(i));
@@ -174,7 +173,7 @@ function sampleContour(contour: PointPath, o: Required<IOutlineOptions>) {
 }
 
 function coversAllMembers(members: ReadonlyArray<{ cx: number; cy: number }>, path: PointPath) {
-  const bb = boundingBox(path);
+  const bb = boundingBox(path.points);
   if (!bb) {
     return false;
   }

@@ -1,5 +1,6 @@
-import { PointPath, Point } from '../PointPath';
+import { PointPath } from '../PointPath';
 import { linePtSegDistSq } from '../utils';
+import { IPoint } from '../interfaces';
 
 function canTakeNext(path: PointPath, start: number, end: number, toleranceSquared: number) {
   const validEnd = path.closed ? end < path.length : end < path.length - 1;
@@ -25,7 +26,7 @@ export function shapeSimplifier(tolerance = 0.0) {
     if (tolerance < 0 || path.length < 3) {
       return path;
     }
-    const points: Point[] = [];
+    const points: IPoint[] = [];
     let start = 0;
     const toleranceSquared = tolerance * tolerance;
     while (start < path.length) {

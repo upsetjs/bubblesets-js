@@ -2,7 +2,7 @@ import { EState, fractionToLineCenter, Intersection, testIntersection } from '..
 import { Line } from '../model/Line';
 import { Rectangle } from '../model/Rectangle';
 import { doublePointsEqual, ptsDistanceSq } from '../utils';
-import { Point } from '../PointPath';
+import { IPoint, point } from '../interfaces';
 
 export function calculateVirtualEdges(
   items: ReadonlyArray<Rectangle>,
@@ -14,13 +14,13 @@ export function calculateVirtualEdges(
   const virtualEdges: Line[] = [];
   const sorted = sortByDistanceToCentroid(items);
 
-  sorted.forEach((item) => {
+  for (const item of sorted) {
     const lines = connectItem(nonMembers, item, visited, maxRoutingIterations, morphBuffer);
-    lines.forEach((l) => {
+    for (const l of lines) {
       virtualEdges.push(l);
-    });
+    }
     visited.push(item);
-  });
+  }
   return virtualEdges;
 }
 
@@ -179,11 +179,11 @@ function sortByDistanceToCentroid(items: ReadonlyArray<Rectangle>) {
     .map((d) => d[0]);
 }
 
-function isPointInRectangles(point: Point, rects: ReadonlyArray<Rectangle>) {
+function isPointInRectangles(point: IPoint, rects: ReadonlyArray<Rectangle>) {
   return rects.some((r) => r.containsPt(point.x, point.y));
 }
 
-function pointExists(pointToCheck: Point, lines: ReadonlyArray<Line>) {
+function pointExists(pointToCheck: IPoint, lines: ReadonlyArray<Line>) {
   return lines.some((checkEndPointsLine) => {
     if (doublePointsEqual(checkEndPointsLine.x1, checkEndPointsLine.y1, pointToCheck.x, pointToCheck.y, 1e-3)) {
       return true;
@@ -223,9 +223,6 @@ function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, tes
   }, 0);
 }
 
-function point(x: number, y: number) {
-  return { x, y };
-}
 function rerouteLine(
   rectangle: Rectangle,
   rerouteBuffer: number,

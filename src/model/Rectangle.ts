@@ -1,5 +1,5 @@
 import { Line } from './Line';
-import { IRectangle } from '../interfaces';
+import { IPoint, IRectangle } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
 
 export class Rectangle {
@@ -39,7 +39,7 @@ export class Rectangle {
     this.height = y2 - y;
   }
 
-  addPoint(p: { x: number; y: number }) {
+  addPoint(p: IPoint) {
     const x = Math.min(this.x, p.x);
     const y = Math.min(this.y, p.y);
     const x2 = Math.max(this.x2, p.x);
@@ -178,4 +178,16 @@ export class Rectangle {
     }
     return 0;
   }
+}
+
+export function boundingBox(path: ReadonlyArray<IPoint>) {
+  if (path.length === 0) {
+    return null;
+  }
+  const first = path[0];
+  const bb = new Rectangle(first.x, first.y, 0, 0);
+  for (const point of path) {
+    bb.addPoint(point);
+  }
+  return bb;
 }

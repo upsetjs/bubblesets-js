@@ -5,10 +5,10 @@ export class Area {
   private readonly pixels: Float32Array;
   constructor(
     public readonly pixelGroup: number,
-    public readonly width: number,
-    public readonly height: number,
     public readonly x = 0,
-    public readonly y = 0
+    public readonly y = 0,
+    public readonly width: number,
+    public readonly height: number
   ) {
     this.pixels = new Float32Array(Math.max(0, width * height));
     this.pixels.fill(0);
@@ -22,13 +22,13 @@ export class Area {
     return this.y + this.height;
   }
 
-  static fromRegion(rect: IRectangle, pixelGroup: number) {
+  static fromPixelRegion(rect: IRectangle, pixelGroup: number) {
     return new Area(
       pixelGroup,
-      Math.ceil(rect.width / pixelGroup),
-      Math.ceil(rect.height / pixelGroup),
       rect.x,
-      rect.y
+      rect.y,
+      Math.ceil(rect.width / pixelGroup),
+      Math.ceil(rect.height / pixelGroup)
     );
   }
 
@@ -122,7 +122,45 @@ export class Area {
     }
   }
 
+  fill(value: number) {
+    this.pixels.fill(value);
+  }
+
+  fillArea(rect: IRectangle, value: number) {
+    const offset = rect.x + rect.y * this.width;
+    for (let j = 0; j < rect.height; j++) {
+      const pos = offset + j * this.width;
+      this.pixels.fill(value, pos, pos + rect.width);
+    }
+  }
+
+  fillHorizontalLine(x: number, y: number, width: number, value: number) {
+    const offset = x + y * this.width;
+    this.pixels.fill(value, offset, offset + width);
+  }
+
+  fillVerticalLine(x: number, y: number, height: number, value: number) {
+    const offset = x + y * this.width;
+    for (let i = 0; i < height; i++) {
+      this.pixels[offset + i * this.width] = value;
+    }
+  }
+
   clear() {
     this.pixels.fill(0);
+  }
+
+  toString() {
+    let r = '';
+    for (let i = 0; i < this.height; i++) {
+      const row = i * this.width;
+      for (let j = 0; j < this.width; j++) {
+        const v = this.pixels[row + j];
+        r += v.toFixed(1).padStart(6);
+        r += ' ';
+      }
+      r += '\n';
+    }
+    return r;
   }
 }
