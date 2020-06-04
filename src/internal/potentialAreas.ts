@@ -1,11 +1,20 @@
-import { Rectangle, Line } from '../model';
+import { Rectangle, Line, Circle } from '../model';
 import { Area } from '../model/Area';
+import { ptsDistanceSq } from '../utils';
 
-export function createLineInfluenceArea(line: Line, potentialArea: Area, r1: number) {
+export function createLineInfluenceArea(line: Line, potentialArea: Area, padding: number) {
   const lr = line.asRect();
   const scaled = potentialArea.scale(lr);
-  const padded = potentialArea.addPadding(scaled, r1);
-  return sample(padded, potentialArea, r1, (x, y) => line.ptSegDistSq(x, y));
+  const padded = potentialArea.addPadding(scaled, padding);
+  return sample(padded, potentialArea, padding, (x, y) => line.ptSegDistSq(x, y));
+}
+
+export function createCircleInfluenceArea(circle: Circle, potentialArea: Area, padding: number) {
+  const scaled = potentialArea.scale(circle);
+  const padded = potentialArea.addPadding(scaled, padding);
+  return sample(padded, potentialArea, padding, (x, y) =>
+    Math.max(0, ptsDistanceSq(circle.cx, circle.cy, x, y) - circle.radius ** 2)
+  );
 }
 
 function sample(

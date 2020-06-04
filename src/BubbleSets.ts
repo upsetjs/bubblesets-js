@@ -1,4 +1,4 @@
-import { ILine, IRectangle, IPoint } from './interfaces';
+import { ILine, IRectangle, IPoint, ICircle } from './interfaces';
 import { calculateVirtualEdges } from './internal/routing';
 import { Area } from './model/Area';
 import { Line } from './model/Line';
@@ -133,11 +133,11 @@ export function createOutline(
 }
 
 function computeActiveRegion(
-  memberItems: Rectangle[],
+  memberItems: IRectangle[],
   edgeItems: Line[],
   o: Required<IOutlineOptions> & IOutlineOptions
 ) {
-  let activeRegion = memberItems[0].clone();
+  let activeRegion = Rectangle.from(memberItems[0]);
   for (const m of memberItems) {
     activeRegion.add(m);
   }
@@ -172,7 +172,7 @@ function sampleContour(contour: PointPath, o: Required<IOutlineOptions>) {
   return new PointPath(finalHull);
 }
 
-function coversAllMembers(members: ReadonlyArray<{ cx: number; cy: number }>, path: PointPath) {
+function coversAllMembers(members: ReadonlyArray<ICircle>, path: PointPath) {
   const bb = boundingBox(path.points);
   if (!bb) {
     return false;

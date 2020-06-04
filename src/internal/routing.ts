@@ -2,7 +2,7 @@ import { EState, fractionToLineCenter, Intersection, testIntersection } from '..
 import { Line } from '../model/Line';
 import { Rectangle } from '../model/Rectangle';
 import { doublePointsEqual, ptsDistanceSq } from '../utils';
-import { IPoint, point } from '../interfaces';
+import { IPoint, point, ICircle, IRectangle2 } from '../interfaces';
 
 export function calculateVirtualEdges(
   items: ReadonlyArray<Rectangle>,
@@ -159,7 +159,7 @@ function connectItem(
   return linesToCheck;
 }
 
-function sortByDistanceToCentroid(items: ReadonlyArray<Rectangle>) {
+function sortByDistanceToCentroid<T extends ICircle>(items: ReadonlyArray<T>) {
   let totalX = 0;
   let totalY = 0;
   items.forEach((item) => {
@@ -173,13 +173,13 @@ function sortByDistanceToCentroid(items: ReadonlyArray<Rectangle>) {
       const diffX = totalX - item.cx;
       const diffY = totalY - item.cy;
       const dist = diffX * diffX + diffY * diffY;
-      return [item, dist] as [Rectangle, number];
+      return [item, dist] as [T, number];
     })
     .sort((a, b) => a[1] - b[1])
     .map((d) => d[0]);
 }
 
-function isPointInRectangles(point: IPoint, rects: ReadonlyArray<Rectangle>) {
+function isPointInRectangles(point: IPoint, rects: ReadonlyArray<{ containsPt(x: number, y: number): boolean }>) {
   return rects.some((r) => r.containsPt(point.x, point.y));
 }
 
@@ -199,12 +199,12 @@ function getCenterItem(items: ReadonlyArray<Rectangle>, testLine: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
   let closestItem: Rectangle | null = null;
 
-  items.forEach((interferenceItem) => {
-    if (interferenceItem.intersectsLine(testLine)) {
-      const distance = fractionToLineCenter(interferenceItem, testLine);
+  items.forEach((item) => {
+    if (item.intersectsLine(testLine)) {
+      const distance = fractionToLineCenter(item, testLine);
       // find closest intersection
       if (distance >= 0 && distance < minDistance) {
-        closestItem = interferenceItem;
+        closestItem = item;
         minDistance = distance;
       }
     }
@@ -213,9 +213,9 @@ function getCenterItem(items: ReadonlyArray<Rectangle>, testLine: Line) {
 }
 
 function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, testLine: Line) {
-  return interferenceItems.reduce((count, interferenceItem) => {
-    if (interferenceItem.intersectsLine(testLine)) {
-      if (fractionToLineCenter(interferenceItem, testLine) >= 0) {
+  return interferenceItems.reduce((count, item) => {
+    if (item.intersectsLine(testLine)) {
+      if (fractionToLineCenter(item, testLine) >= 0) {
         return count + 1;
       }
     }
@@ -224,7 +224,7 @@ function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, tes
 }
 
 function rerouteLine(
-  rectangle: Rectangle,
+  item: IRectangle2,
   rerouteBuffer: number,
   intersections: { top: Intersection; left: Intersection; right: Intersection; bottom: Intersection },
   wrapNormal: boolean
@@ -240,105 +240,105 @@ function rerouteLine(
     if (leftIntersect.state === EState.POINT) {
       if (topIntersect.state === EState.POINT)
         // triangle, must go around top left
-        return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(item.x - rerouteBuffer, item.y - rerouteBuffer);
       if (bottomIntersect.state === EState.POINT)
         // triangle, must go around bottom left
-        return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(item.x - rerouteBuffer, item.y2 + rerouteBuffer);
       // else through left to right, calculate areas
-      const totalArea = rectangle.area;
+      const totalArea = item.width * item.height;
       // top area
-      const topArea = rectangle.width * ((leftIntersect.y - rectangle.y + (rightIntersect.y - rectangle.y)) * 0.5);
+      const topArea = item.width * ((leftIntersect.y - item.y + (rightIntersect.y - item.y)) * 0.5);
       if (topArea < totalArea * 0.5) {
         // go around top (the side which would make a greater movement)
         if (leftIntersect.y > rightIntersect.y)
           // top left
-          return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+          return point(item.x - rerouteBuffer, item.y - rerouteBuffer);
         // top right
-        return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(item.x2 + rerouteBuffer, item.y - rerouteBuffer);
       }
       // go around bottom
       if (leftIntersect.y < rightIntersect.y)
         // bottom left
-        return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(item.x - rerouteBuffer, item.y2 + rerouteBuffer);
       // bottom right
-      return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(item.x2 + rerouteBuffer, item.y2 + rerouteBuffer);
     }
     // right side
     if (rightIntersect.state === EState.POINT) {
       if (topIntersect.state === EState.POINT)
         // triangle, must go around top right
-        return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(item.x2 + rerouteBuffer, item.y - rerouteBuffer);
       if (bottomIntersect.state === EState.POINT)
         // triangle, must go around bottom right
-        return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(item.x2 + rerouteBuffer, item.y2 + rerouteBuffer);
     }
     // else through top to bottom, calculate areas
-    const totalArea = rectangle.height * rectangle.width;
-    const leftArea = rectangle.height * ((topIntersect.x - rectangle.x + (rightIntersect.x - rectangle.x)) * 0.5);
+    const totalArea = item.height * item.width;
+    const leftArea = item.height * ((topIntersect.x - item.x + (rightIntersect.x - item.x)) * 0.5);
     if (leftArea < totalArea * 0.5) {
       // go around left
       if (topIntersect.x > bottomIntersect.x)
         // top left
-        return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+        return point(item.x - rerouteBuffer, item.y - rerouteBuffer);
       // bottom left
-      return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(item.x - rerouteBuffer, item.y2 + rerouteBuffer);
     }
     // go around right
     if (topIntersect.x < bottomIntersect.x)
       // top right
-      return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(item.x2 + rerouteBuffer, item.y - rerouteBuffer);
     // bottom right
-    return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+    return point(item.x2 + rerouteBuffer, item.y2 + rerouteBuffer);
   }
   // wrap around opposite (usually because the first move caused a problem)
   if (leftIntersect.state === EState.POINT) {
     if (topIntersect.state === EState.POINT)
       // triangle, must go around bottom right
-      return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(item.x2 + rerouteBuffer, item.y2 + rerouteBuffer);
     if (bottomIntersect.state === EState.POINT)
       // triangle, must go around top right
-      return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(item.x2 + rerouteBuffer, item.y - rerouteBuffer);
     // else through left to right, calculate areas
-    const totalArea = rectangle.height * rectangle.width;
-    const topArea = rectangle.width * ((leftIntersect.y - rectangle.y + (rightIntersect.y - rectangle.y)) * 0.5);
+    const totalArea = item.height * item.width;
+    const topArea = item.width * ((leftIntersect.y - item.y + (rightIntersect.y - item.y)) * 0.5);
     if (topArea < totalArea * 0.5) {
       // go around bottom (the side which would make a lesser movement)
       if (leftIntersect.y > rightIntersect.y)
         // bottom right
-        return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+        return point(item.x2 + rerouteBuffer, item.y2 + rerouteBuffer);
       // bottom left
-      return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(item.x - rerouteBuffer, item.y2 + rerouteBuffer);
     }
     // go around top
     if (leftIntersect.y < rightIntersect.y)
       // top right
-      return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(item.x2 + rerouteBuffer, item.y - rerouteBuffer);
     // top left
-    return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+    return point(item.x - rerouteBuffer, item.y - rerouteBuffer);
   }
   if (rightIntersect.state === EState.POINT) {
     if (topIntersect.state === EState.POINT)
       // triangle, must go around bottom left
-      return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(item.x - rerouteBuffer, item.y2 + rerouteBuffer);
     if (bottomIntersect.state === EState.POINT)
       // triangle, must go around top left
-      return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+      return point(item.x - rerouteBuffer, item.y - rerouteBuffer);
   }
   // else through top to bottom, calculate areas
-  const totalArea = rectangle.height * rectangle.width;
-  const leftArea = rectangle.height * ((topIntersect.x - rectangle.x + (rightIntersect.x - rectangle.x)) * 0.5);
+  const totalArea = item.height * item.width;
+  const leftArea = item.height * ((topIntersect.x - item.x + (rightIntersect.x - item.x)) * 0.5);
   if (leftArea < totalArea * 0.5) {
     // go around right
     if (topIntersect.x > bottomIntersect.x)
       // bottom right
-      return point(rectangle.x2 + rerouteBuffer, rectangle.y2 + rerouteBuffer);
+      return point(item.x2 + rerouteBuffer, item.y2 + rerouteBuffer);
     // top right
-    return point(rectangle.x2 + rerouteBuffer, rectangle.y - rerouteBuffer);
+    return point(item.x2 + rerouteBuffer, item.y - rerouteBuffer);
   }
   // go around left
   if (topIntersect.x < bottomIntersect.x)
     // bottom left
-    return point(rectangle.x - rerouteBuffer, rectangle.y2 + rerouteBuffer);
+    return point(item.x - rerouteBuffer, item.y2 + rerouteBuffer);
   // top left
-  return point(rectangle.x - rerouteBuffer, rectangle.y - rerouteBuffer);
+  return point(item.x - rerouteBuffer, item.y - rerouteBuffer);
 }

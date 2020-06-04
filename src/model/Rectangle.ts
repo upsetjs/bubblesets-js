@@ -20,6 +20,10 @@ export class Rectangle {
     return this.y + this.height / 2;
   }
 
+  get radius() {
+    return Math.max(this.width, this.height) / 2;
+  }
+
   static from(r: IRectangle) {
     return new Rectangle(r.x, r.y, r.width, r.height);
   }

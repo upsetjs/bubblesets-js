@@ -1,5 +1,5 @@
 import { Line } from './Line';
-import { Rectangle } from './Rectangle';
+import { IRectangle2 } from '../interfaces';
 
 export enum EState {
   POINT = 1,
@@ -41,7 +41,7 @@ export function fractionAlongLineA(la: Line, lb: Line) {
   return Number.POSITIVE_INFINITY;
 }
 
-export function fractionToLineCenter(bounds: Rectangle, line: Line) {
+export function fractionToLineCenter(bounds: IRectangle2, line: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
   let countIntersections = 0;
 
@@ -77,7 +77,7 @@ export function fractionToLineCenter(bounds: Rectangle, line: Line) {
   return minDistance;
 }
 
-export function fractionToLineEnd(bounds: Rectangle, line: Line) {
+export function fractionToLineEnd(bounds: IRectangle2, line: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
   let countIntersections = 0;
 
@@ -112,7 +112,7 @@ export function fractionToLineEnd(bounds: Rectangle, line: Line) {
   return minDistance;
 }
 
-export function testIntersection(line: Line, bounds: Rectangle) {
+export function testIntersection(line: Line, bounds: IRectangle2) {
   let count = 0;
   // top
   const top = intersectLineLine(line, new Line(bounds.x, bounds.y, bounds.x2, bounds.y));

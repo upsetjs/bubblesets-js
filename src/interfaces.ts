@@ -5,6 +5,11 @@ export interface IRectangle extends IPoint {
   height: number;
 }
 
+export interface IRectangle2 extends IRectangle {
+  x2: number;
+  y2: number;
+}
+
 export interface ILine {
   x1: number;
   y1: number;
@@ -12,8 +17,18 @@ export interface ILine {
   y2: number;
 }
 
+export interface ICircle {
+  cx: number;
+  cy: number;
+  radius: number;
+}
+
 export function rect(x: number, y: number, width: number, height: number): IRectangle {
   return { x, y, width, height };
+}
+
+export function circle(cx: number, cy: number, radius: number): ICircle {
+  return { cx, cy, radius };
 }
 
 export function line(x1: number, y1: number, x2: number, y2: number): ILine {
