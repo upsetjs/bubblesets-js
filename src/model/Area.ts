@@ -7,6 +7,7 @@ export class Area {
     public readonly y = 0
   ) {
     this.pixels = new Float32Array(Math.max(0, width * height));
+    this.pixels.fill(0);
   }
 
   bound(pos: number, isX: boolean) {
@@ -56,16 +57,24 @@ export class Area {
     this.pixels[x + y * this.width] = v;
   }
 
-  incArea(area: Area) {
-    if (area.width <= 0 || area.height <= 0) {
+  incArea(area: Area, factor: number) {
+    if (area.width <= 0 || area.height <= 0 || factor === 0) {
       return;
     }
     // assume it is within the bounds
     const w = this.width;
+    const aw = area.width;
     const base = area.x + area.y * w;
-    // copy by row
     for (let j = 0; j < area.height; j++) {
-      this.pixels.set(area.pixels.subarray(j * area.width, area.width), base + j * w);
+      const sRow = base + j * w;
+      const tRow = j * aw;
+      for (let i = 0; i < area.width; i++) {
+        this.pixels[i + sRow] += factor * area.pixels[i + tRow];
+      }
     }
+  }
+
+  clear() {
+    this.pixels.fill(0);
   }
 }

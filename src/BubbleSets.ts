@@ -53,11 +53,18 @@ export function createOutline(
     edgeItems.push(Line.from(e));
   }
   const activeRegion = computeActiveRegion(memberItems, edgeItems, o);
-  const nonMembersInRegion = nonMemberItems.filter((item) => activeRegion.intersects(item));
 
   const potentialArea = new Area(
     Math.ceil(activeRegion.width / o.pixelGroup),
     Math.ceil(activeRegion.height / o.pixelGroup)
+  );
+
+  const memberAreas = memberItems.map((rect) =>
+    createRectangleInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.nodeR1, rect)
+  );
+  const nonMembersInRegion = nonMemberItems.filter((item) => activeRegion.intersects(item));
+  const nonMemberAreas = nonMembersInRegion.map((rect) =>
+    createRectangleInfluenceArea(activeRegion, o.pixelGroup, potentialArea, o.nodeR1, rect)
   );
 
   let threshold = 1;
@@ -76,16 +83,10 @@ export function createOutline(
     // add all positive energy (included items) first, as negative energy
     // (morphing) requires all positives to be already set
     if (nodeInfluenceFactor !== 0) {
-      for (const item of memberItems) {
+      const f = nodeInfluenceFactor / nodeInfA;
+      for (const item of memberAreas) {
         // add node energy
-        calculateRectangleInfluence(
-          activeRegion,
-          o.pixelGroup,
-          potentialArea,
-          nodeInfluenceFactor / nodeInfA,
-          o.nodeR1,
-          item
-        );
+        potentialArea.incArea(item, f);
       }
     }
 
@@ -103,17 +104,10 @@ export function createOutline(
 
     // calculate negative energy contribution for all other visible items within bounds
     if (negativeNodeInfluenceFactor !== 0) {
-      for (const item of nonMembersInRegion) {
-        // subtract influence
-        // using inverse a for numerical stability
-        calculateRectangleInfluence(
-          activeRegion,
-          o.pixelGroup,
-          potentialArea,
-          negativeNodeInfluenceFactor / nodeInfA,
-          o.nodeR1,
-          item
-        );
+      const f = negativeNodeInfluenceFactor / nodeInfA;
+      for (const item of nonMemberAreas) {
+        // add node energy
+        potentialArea.incArea(item, f);
       }
     }
   };
@@ -142,6 +136,7 @@ export function createOutline(
     } else {
       break;
     }
+    potentialArea.clear();
     fillPotentialArea();
   }
   return postProcessSurface(surface, activeRegion, o);
@@ -612,11 +607,10 @@ function getRectDistSq(rect: Rectangle, tempX: number, tempY: number) {
   return 0;
 }
 
-function calculateRectangleInfluence(
+function createRectangleInfluenceArea(
   activeRegion: Rectangle,
   pixelGroup: number,
   potentialArea: Area,
-  influenceFactor: number,
   r1: number,
   rect: Rectangle
 ) {
@@ -628,12 +622,11 @@ function calculateRectangleInfluence(
   const endY = potentialArea.boundY(Math.ceil((rect.y2 + r1 - activeRegion.y) / pixelGroup));
   // for every point in active subregion of potentialArea, calculate
   // distance to nearest point on rectangle and add influence
+  const areaWidth = endX - startX;
+  const areaHeight = endY - startY;
+  const area = new Area(areaWidth, areaHeight, startX, startY);
   for (let y = startY; y < endY; y++) {
     for (let x = startX; x < endX; x++) {
-      if (influenceFactor < 0 && potentialArea.get(x, y) <= 0) {
-        // no need to reduce a below zero point even further
-        continue;
-      }
       // convert back to screen coordinates
       const tempX = x * pixelGroup + activeRegion.x;
       const tempY = y * pixelGroup + activeRegion.y;
@@ -641,10 +634,11 @@ function calculateRectangleInfluence(
       // only influence if less than r1
       if (distanceSq < ri2) {
         const dr = Math.sqrt(distanceSq) - r1;
-        potentialArea.inc(x, y, influenceFactor * dr * dr);
+        area.set(x - startX, y - startY, dr * dr);
       }
     }
   }
+  return area;
 }
 
 function rerouteLine(
