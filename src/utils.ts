@@ -8,6 +8,7 @@ export function linePtSegDistSq(lx1: number, ly1: number, lx2: number, ly2: numb
   let py = y - y1;
   let dotprod = px * x2 + py * y2;
   let projlenSq = 0;
+
   if (dotprod <= 0) {
     projlenSq = 0;
   } else {
@@ -20,9 +21,10 @@ export function linePtSegDistSq(lx1: number, ly1: number, lx2: number, ly2: numb
       projlenSq = (dotprod * dotprod) / (x2 * x2 + y2 * y2);
     }
   }
-  let lenSq = px * px + py * py - projlenSq;
+
+  const lenSq = px * px + py * py - projlenSq;
   if (lenSq < 0) {
-    lenSq = 0;
+    return 0;
   }
   return lenSq;
 }

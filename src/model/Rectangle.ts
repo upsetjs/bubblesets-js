@@ -119,56 +119,50 @@ export class Rectangle {
 
   rectDistSq(tempX: number, tempY: number) {
     // test current point to see if it is inside rectangle
-    if (!this.containsPt(tempX, tempY)) {
-      // which edge of rectangle is closest
-      const outcode = this.outcode(tempX, tempY);
-      // top
-      if ((outcode & Rectangle.OUT_TOP) === Rectangle.OUT_TOP) {
-        // and left
-        if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
-          // linear distance from upper left corner
-          return Point.ptsDistanceSq(tempX, tempY, this.x, this.y);
-        } else {
-          // and right
-          if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
-            // linear distance from upper right corner
-            return Point.ptsDistanceSq(tempX, tempY, this.x2, this.y);
-          } else {
-            // distance from top line segment
-            return (this.y - tempY) * (this.y - tempY);
-          }
-        }
-      } else {
-        // bottom
-        if ((outcode & Rectangle.OUT_BOTTOM) === Rectangle.OUT_BOTTOM) {
-          // and left
-          if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
-            // linear distance from lower left corner
-            return Point.ptsDistanceSq(tempX, tempY, this.x, this.y2);
-          } else {
-            // and right
-            if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
-              // linear distance from lower right corner
-              return Point.ptsDistanceSq(tempX, tempY, this.x2, this.y2);
-            } else {
-              // distance from bottom line segment
-              return (tempY - this.y2) * (tempY - this.y2);
-            }
-          }
-        } else {
-          // left only
-          if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
-            // linear distance from left edge
-            return (this.x - tempX) * (this.x - tempX);
-          } else {
-            // right only
-            if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
-              // linear distance from right edge
-              return (tempX - this.x2) * (tempX - this.x2);
-            }
-          }
-        }
+    if (this.containsPt(tempX, tempY)) {
+      return 0;
+    }
+    // which edge of rectangle is closest
+    const outcode = this.outcode(tempX, tempY);
+    // top
+    if ((outcode & Rectangle.OUT_TOP) === Rectangle.OUT_TOP) {
+      // and left
+      if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
+        // linear distance from upper left corner
+        return Point.ptsDistanceSq(tempX, tempY, this.x, this.y);
       }
+      if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
+        // and right
+        // linear distance from upper right corner
+        return Point.ptsDistanceSq(tempX, tempY, this.x2, this.y);
+      }
+      // distance from top line segment
+      return (this.y - tempY) * (this.y - tempY);
+    }
+    // bottom
+    if ((outcode & Rectangle.OUT_BOTTOM) === Rectangle.OUT_BOTTOM) {
+      // and left
+      if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
+        // linear distance from lower left corner
+        return Point.ptsDistanceSq(tempX, tempY, this.x, this.y2);
+      }
+      // and right
+      if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
+        // linear distance from lower right corner
+        return Point.ptsDistanceSq(tempX, tempY, this.x2, this.y2);
+      }
+      // distance from bottom line segment
+      return (tempY - this.y2) * (tempY - this.y2);
+    }
+    // left only
+    if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
+      // linear distance from left edge
+      return (this.x - tempX) * (this.x - tempX);
+    }
+    // right only
+    if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
+      // linear distance from right edge
+      return (tempX - this.x2) * (tempX - this.x2);
     }
     return 0;
   }
