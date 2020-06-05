@@ -41,9 +41,11 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
   function doMarch(xPos: number, yPos: number) {
     let x = xPos;
     let y = yPos;
+    let xPixel = potentialArea.invertScaleX(x);
+    let yPixel = potentialArea.invertScaleY(y);
     for (;;) {
       // iterative version of end recursion
-      const p = { x: potentialArea.invertScaleX(x), y: potentialArea.invertScaleY(y) };
+      const p = { x: xPixel, y: yPixel };
       // check if we're back where we started
       if (contour.contains(p)) {
         if (!contour.isFirst(p)) {
@@ -95,15 +97,19 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
       switch (direction) {
         case N:
           y--; // up
+          yPixel -= potentialArea.pixelGroup;
           break;
         case S:
           y++; // down
+          yPixel += potentialArea.pixelGroup;
           break;
         case W:
           x--; // left
+          xPixel -= potentialArea.pixelGroup;
           break;
         case E:
           x++; // right
+          xPixel += potentialArea.pixelGroup;
           break;
         default:
           console.warn('Marching squares invalid state: ' + state);
