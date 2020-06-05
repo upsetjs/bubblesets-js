@@ -62,6 +62,10 @@ export class Rectangle implements IRectangle2, ICircle {
     return `Rectangle[x=${this.x}, y=${this.y}, w=${this.width}, h=${this.height}]`;
   }
 
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.rect(this.x, this.y, this.width, this.height);
+  }
+
   containsPt(px: number, py: number) {
     return px >= this.x && px <= this.x2 && py >= this.y && py <= this.y2;
   }

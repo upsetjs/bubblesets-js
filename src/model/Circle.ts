@@ -45,4 +45,8 @@ export class Circle implements IRectangle2, ICircle {
     const offset = Math.sqrt(dist) - this.radius;
     return offset * offset;
   }
+
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.ellipse(this.cx, this.cy, this.radius, this.radius, 0, 0, Math.PI * 2);
+  }
 }

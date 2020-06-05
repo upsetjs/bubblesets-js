@@ -18,6 +18,11 @@ export class Line {
     return this.x1 === that.x1 && this.y1 === that.y1 && this.x2 === that.x2 && this.y2 === that.y2;
   }
 
+  draw(ctx: CanvasRenderingContext2D) {
+    ctx.moveTo(this.x1, this.y1);
+    ctx.lineTo(this.x2, this.y2);
+  }
+
   toString() {
     return `Line(from=(${this.x1},${this.y1}),to=(${this.x2},${this.y2}))`;
   }

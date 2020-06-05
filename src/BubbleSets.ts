@@ -43,11 +43,6 @@ export interface IOutlineOptions {
   memberInfluenceFactor?: number;
   edgeInfluenceFactor?: number;
   nonMemberInfluenceFactor?: number;
-
-  /**
-   * if provided it will store some debug helpers like the potential area used
-   */
-  debugContainer?: { potentialArea?: Area; threshold?: number };
 }
 
 const defaultOptions: Required<IOutlineOptions> = {
@@ -60,7 +55,6 @@ const defaultOptions: Required<IOutlineOptions> = {
   nodeR1: 50,
   morphBuffer: 10,
   skip: 8,
-  debugContainer: {},
 
   threshold: 1,
   memberInfluenceFactor: 1,
@@ -297,6 +291,25 @@ export class BubbleSets {
     });
   }
 
+  drawMembers(ctx: CanvasRenderingContext2D) {
+    for (const member of this.members) {
+      member.obj.draw(ctx);
+    }
+  }
+  drawNonMembers(ctx: CanvasRenderingContext2D) {
+    for (const member of this.nonMembers) {
+      member.obj.draw(ctx);
+    }
+  }
+  drawEdges(ctx: CanvasRenderingContext2D) {
+    for (const edge of this.edges) {
+      edge.obj.draw(ctx);
+    }
+  }
+  drawPotentialArea(ctx: CanvasRenderingContext2D, offset = true) {
+    this.potentialArea.draw(ctx, offset);
+  }
+
   compute() {
     if (this.members.length === 0) {
       return new PointPath([]);
@@ -361,8 +374,6 @@ export class BubbleSets {
         const sampled = sampleContour(contour, o);
         if (coversAllMembers(memberObjs, sampled)) {
           // found a valid path
-          o.debugContainer.potentialArea = potentialArea;
-          o.debugContainer.threshold = threshold;
           return sampled;
         }
       }
@@ -382,9 +393,6 @@ export class BubbleSets {
         break;
       }
     }
-
-    this.o.debugContainer.potentialArea = potentialArea;
-    this.o.debugContainer.threshold = threshold;
     // cannot find a solution
     return new PointPath([]);
   }
