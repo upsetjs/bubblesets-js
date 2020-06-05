@@ -43,6 +43,8 @@ export interface IOutlineOptions {
   memberInfluenceFactor?: number;
   edgeInfluenceFactor?: number;
   nonMemberInfluenceFactor?: number;
+
+  virtualEdges?: boolean;
 }
 
 const defaultOptions: Required<IOutlineOptions> = {
@@ -60,6 +62,8 @@ const defaultOptions: Required<IOutlineOptions> = {
   memberInfluenceFactor: 1,
   edgeInfluenceFactor: 1,
   nonMemberInfluenceFactor: -0.8,
+
+  virtualEdges: true,
 };
 
 function isCircle(v: IRectangle | ICircle): v is ICircle {
@@ -190,7 +194,7 @@ export class BubbleSets {
     this.dirty.clear();
 
     const memberObjs = this.members.map((d) => d.obj);
-    if (dirtyMembers || dirtyNonMembers) {
+    if (this.o.virtualEdges && (dirtyMembers || dirtyNonMembers)) {
       // update virtual edges
       const nonMembersAsRects = this.nonMembers.map((d) =>
         d.obj instanceof Rectangle ? d.obj : Rectangle.from(d.obj)
