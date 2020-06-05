@@ -1,18 +1,24 @@
 import { linePtSegDistSq } from '../utils';
-import { Rectangle } from './Rectangle';
-import { ILine } from '../interfaces';
+import { ILine, IRectangle2 } from '../interfaces';
+
+export function lineBoundingBox(line: ILine): IRectangle2 {
+  const minX = Math.min(line.x1, line.x2);
+  const maxX = Math.max(line.x1, line.x2);
+  const minY = Math.min(line.y1, line.y2);
+  const maxY = Math.max(line.y1, line.y2);
+
+  return {
+    x: minX,
+    y: minY,
+    x2: maxX,
+    y2: maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
 
 export class Line {
   constructor(public x1: number, public y1: number, public x2: number, public y2: number) {}
-
-  asRect() {
-    const minX = Math.min(this.x1, this.x2);
-    const maxX = Math.max(this.x1, this.x2);
-    const minY = Math.min(this.y1, this.y2);
-    const maxY = Math.max(this.y1, this.y2);
-
-    return new Rectangle(minX, minY, maxX - minX, maxY - minY);
-  }
 
   equals(that: ILine) {
     return this.x1 === that.x1 && this.y1 === that.y1 && this.x2 === that.x2 && this.y2 === that.y2;

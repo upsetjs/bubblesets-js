@@ -102,7 +102,7 @@
         function doBubbles(rects, others, elem) {
           var [a, b] = getRectangleSets(rects, others);
           var pointPath = BubbleSets.createOutline(a, b, getEdges(rects));
-          const outline = pointPath.simplify().bSplines().simplify(0);
+          const outline = pointPath.sample(8).simplify(0).bSplines().simplify(0);
 
           elem.setAttribute('d', outline.toString());
         }

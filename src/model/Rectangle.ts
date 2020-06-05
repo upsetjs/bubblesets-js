@@ -1,6 +1,6 @@
-import { Line } from './Line';
 import { IPoint, IRectangle, IRectangle2, ICircle } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
+import { outcode, OUT_CODE } from '../Intersection';
 
 export class Rectangle implements IRectangle2, ICircle {
   constructor(public x: number, public y: number, public width: number, public height: number) {}
@@ -81,81 +81,21 @@ export class Rectangle implements IRectangle2, ICircle {
     return that.x + that.width > this.x && that.y + that.height > this.y && that.x < this.x2 && that.y < this.y2;
   }
 
-  intersectsLine(line: Line) {
-    let x1 = line.x1;
-    let y1 = line.y1;
-    let x2 = line.x2;
-    let y2 = line.y2;
-    // taken from JDK 8 java.awt.geom.Rectangle2D.Double#intersectsLine(double, double, double, double)
-    const out2 = this.outcode(x2, y2);
-    if (out2 === 0) {
-      return true;
-    }
-    let out1 = this.outcode(x1, y1);
-    while (out1 !== 0) {
-      if ((out1 & out2) !== 0) {
-        return false;
-      }
-      if ((out1 & (Rectangle.OUT_LEFT | Rectangle.OUT_RIGHT)) !== 0) {
-        let x = this.x;
-        if ((out1 & Rectangle.OUT_RIGHT) !== 0) {
-          x += this.width;
-        }
-        y1 = y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
-        x1 = x;
-      } else {
-        let y = this.y;
-        if ((out1 & Rectangle.OUT_BOTTOM) !== 0) {
-          y += this.height;
-        }
-        x1 = x1 + ((y - y1) * (x2 - x1)) / (y2 - y1);
-        y1 = y;
-      }
-      out1 = this.outcode(x1, y1);
-    }
-    return true;
-  }
-
-  outcode(px: number, py: number) {
-    // taken from JDK 8 java.awt.geom.Rectangle2D.Double#outcode(double, double)
-    let out = 0;
-    if (this.width <= 0) {
-      out |= Rectangle.OUT_LEFT | Rectangle.OUT_RIGHT;
-    } else if (px < this.x) {
-      out |= Rectangle.OUT_LEFT;
-    } else if (px > this.x2) {
-      out |= Rectangle.OUT_RIGHT;
-    }
-    if (this.height <= 0) {
-      out |= Rectangle.OUT_TOP | Rectangle.OUT_BOTTOM;
-    } else if (py < this.y) {
-      out |= Rectangle.OUT_TOP;
-    } else if (py > this.y2) {
-      out |= Rectangle.OUT_BOTTOM;
-    }
-    return out;
-  }
-
-  static readonly OUT_LEFT = 1;
-  static readonly OUT_TOP = 2;
-  static readonly OUT_RIGHT = 4;
-  static readonly OUT_BOTTOM = 8;
-
-  distSq(tempX: number, tempY: number) {
+  distSquare(tempX: number, tempY: number) {
     // test current point to see if it is inside rectangle
     if (this.containsPt(tempX, tempY)) {
       return 0;
     }
     // which edge of rectangle is closest
-    const outcode = this.outcode(tempX, tempY);
+    const code = outcode(this, tempX, tempY);
     // top
-    if ((outcode & Rectangle.OUT_TOP) === Rectangle.OUT_TOP) {
+    if (code.has(OUT_CODE.TOP)) {
       // and left
-      if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
+      if (code.has(OUT_CODE.LEFT)) {
         // linear distance from upper left corner
         return ptsDistanceSq(tempX, tempY, this.x, this.y);
       }
-      if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
+      if (code.has(OUT_CODE.RIGHT)) {
         // and right
         // linear distance from upper right corner
         return ptsDistanceSq(tempX, tempY, this.x2, this.y);
@@ -164,14 +104,14 @@ export class Rectangle implements IRectangle2, ICircle {
       return (this.y - tempY) * (this.y - tempY);
     }
     // bottom
-    if ((outcode & Rectangle.OUT_BOTTOM) === Rectangle.OUT_BOTTOM) {
+    if (code.has(OUT_CODE.BOTTOM)) {
       // and left
-      if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
+      if (code.has(OUT_CODE.LEFT)) {
         // linear distance from lower left corner
         return ptsDistanceSq(tempX, tempY, this.x, this.y2);
       }
       // and right
-      if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
+      if (code.has(OUT_CODE.RIGHT)) {
         // linear distance from lower right corner
         return ptsDistanceSq(tempX, tempY, this.x2, this.y2);
       }
@@ -179,12 +119,12 @@ export class Rectangle implements IRectangle2, ICircle {
       return (tempY - this.y2) * (tempY - this.y2);
     }
     // left only
-    if ((outcode & Rectangle.OUT_LEFT) === Rectangle.OUT_LEFT) {
+    if (code.has(OUT_CODE.LEFT)) {
       // linear distance from left edge
       return (this.x - tempX) * (this.x - tempX);
     }
     // right only
-    if ((outcode & Rectangle.OUT_RIGHT) === Rectangle.OUT_RIGHT) {
+    if (code.has(OUT_CODE.RIGHT)) {
       // linear distance from right edge
       return (tempX - this.x2) * (tempX - this.x2);
     }

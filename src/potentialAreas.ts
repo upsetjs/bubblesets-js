@@ -1,25 +1,28 @@
-import { Rectangle, Line } from '../model';
-import { Area } from '../model/Area';
-import { addPadding } from '../padding';
-import { IRectangle } from '../interfaces';
+import { lineBoundingBox } from './model';
+import { Area } from './model/Area';
+import { addPadding } from './padding';
+import { IRectangle, ILine } from './interfaces';
+import { linePtSegDistSq } from './utils';
 
-export function createLineInfluenceArea(line: Line, potentialArea: Area, padding: number) {
-  const lr = addPadding(line.asRect(), padding);
-  const scaled = potentialArea.scale(lr);
-  const area = potentialArea.createSub(scaled, lr);
-  sample(area, potentialArea, padding, (x, y) => line.distSquare(x, y));
-  return area;
+export function createLineInfluenceArea(line: ILine, potentialArea: Area, padding: number) {
+  return createGenericInfluenceArea(
+    Object.assign(lineBoundingBox(line), {
+      distSquare: (x: number, y: number) => linePtSegDistSq(line.x1, line.y1, line.x2, line.y2, x, y),
+    }),
+    potentialArea,
+    padding
+  );
 }
 
 export function createGenericInfluenceArea(
-  circle: IRectangle & { distSquare(x: number, y: number): number },
+  shape: IRectangle & { distSquare(x: number, y: number): number },
   potentialArea: Area,
   padding: number
 ) {
-  const lr = addPadding(circle, padding);
+  const lr = addPadding(shape, padding);
   const scaled = potentialArea.scale(lr);
   const area = potentialArea.createSub(scaled, lr);
-  sample(area, potentialArea, padding, (x, y) => circle.distSquare(x, y));
+  sample(area, potentialArea, padding, (x, y) => shape.distSquare(x, y));
   return area;
 }
 
@@ -46,7 +49,11 @@ function sample(area: Area, potentialArea: Area, padding: number, distanceFuncti
   return area;
 }
 
-export function createRectangleInfluenceArea(rect: Rectangle, potentialArea: Area, padding: number) {
+export function createRectangleInfluenceArea(
+  rect: IRectangle & { distSquare(x: number, y: number): number },
+  potentialArea: Area,
+  padding: number
+) {
   const scaled = potentialArea.scale(rect);
   const padded = potentialArea.addPadding(scaled, padding);
   const area = potentialArea.createSub(padded, { x: rect.x - padding, y: rect.y - padding });
@@ -79,7 +86,7 @@ export function createRectangleInfluenceArea(rect: Rectangle, potentialArea: Are
   const tempX = potentialArea.invertScaleX(scaled.x + scaled.width / 2);
   for (let i = 1; i < maxPadding; i++) {
     const tempY = potentialArea.invertScaleY(scaled.y - i);
-    const distanceSq = rect.distSq(tempX, tempY);
+    const distanceSq = rect.distSquare(tempX, tempY);
     // only influence if less than r1
     if (distanceSq < padding2) {
       const dr = padding - Math.sqrt(distanceSq);
@@ -96,7 +103,7 @@ export function createRectangleInfluenceArea(rect: Rectangle, potentialArea: Are
     const row: number[] = [];
     for (let j = 1; j < maxVerticalPadding; j++) {
       const tempY = potentialArea.invertScaleY(scaled.y - j);
-      const distanceSq = rect.distSq(tempX, tempY);
+      const distanceSq = rect.distSquare(tempX, tempY);
       // only influence if less than r1
       if (distanceSq < padding2) {
         const dr = padding - Math.sqrt(distanceSq);

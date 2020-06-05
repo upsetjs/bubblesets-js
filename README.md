@@ -22,7 +22,7 @@ bubbleSets.pushMember(BubbleSets.rect(200, 100, 50, 20));
 bubbleSets.pushMember(BubbleSets.circle(240, 40, 10));
 
 const pointPath = bubbleSets.compute();
-const cleanPath = pointPath.simplify(0).bSplines().simplify(0);
+const cleanPath = pointPath.sample(8).simplify(0).bSplines().simplify(0);
 
 const canvas = document.createElement('canvas');
 canvas.width = 400;

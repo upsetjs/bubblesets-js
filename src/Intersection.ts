@@ -1,5 +1,5 @@
-import { Line } from './Line';
-import { IRectangle2 } from '../interfaces';
+import { Line } from './model/Line';
+import { IRectangle2, ILine, IRectangle } from './interfaces';
 
 export enum EState {
   POINT = 1,
@@ -12,7 +12,7 @@ export class Intersection {
   constructor(public readonly state: EState, public readonly x = 0, public readonly y = 0) {}
 }
 
-export function intersectLineLine(la: Line, lb: Line) {
+export function intersectLineLine(la: ILine, lb: ILine) {
   const uaT = (lb.x2 - lb.x1) * (la.y1 - lb.y1) - (lb.y2 - lb.y1) * (la.x1 - lb.x1);
   const ubT = (la.x2 - la.x1) * (la.y1 - lb.y1) - (la.y2 - la.y1) * (la.x1 - lb.x1);
   const uB = (lb.y2 - lb.y1) * (la.x2 - la.x1) - (lb.x2 - lb.x1) * (la.y2 - la.y1);
@@ -27,7 +27,7 @@ export function intersectLineLine(la: Line, lb: Line) {
   return new Intersection(uaT == 0 || ubT == 0 ? EState.COINCIDENT : EState.PARALLEL);
 }
 
-export function fractionAlongLineA(la: Line, lb: Line) {
+export function fractionAlongLineA(la: ILine, lb: ILine) {
   const uaT = (lb.x2 - lb.x1) * (la.y1 - lb.y1) - (lb.y2 - lb.y1) * (la.x1 - lb.x1);
   const ubT = (la.x2 - la.x1) * (la.y1 - lb.y1) - (la.y2 - la.y1) * (la.x1 - lb.x1);
   const uB = (lb.y2 - lb.y1) * (la.x2 - la.x1) - (lb.x2 - lb.x1) * (la.y2 - la.y1);
@@ -41,7 +41,7 @@ export function fractionAlongLineA(la: Line, lb: Line) {
   return Number.POSITIVE_INFINITY;
 }
 
-export function hasFractionToLineCenter(bounds: IRectangle2, line: Line) {
+export function hasFractionToLineCenter(bounds: IRectangle2, line: ILine) {
   function testLine(xa: number, ya: number, xb: number, yb: number) {
     let testDistance = fractionAlongLineA(line, new Line(xa, ya, xb, yb));
     testDistance = Math.abs(testDistance - 0.5);
@@ -69,7 +69,71 @@ export function hasFractionToLineCenter(bounds: IRectangle2, line: Line) {
   return countIntersections > 0;
 }
 
-export function fractionToLineCenter(bounds: IRectangle2, line: Line) {
+export enum OUT_CODE {
+  LEFT,
+  TOP,
+  RIGHT,
+  BOTTOM,
+}
+
+export function outcode(bounds: IRectangle, px: number, py: number): Set<OUT_CODE> {
+  // taken from JDK 8 java.awt.geom.Rectangle2D.Double#outcode(double, double)
+  const out = new Set<OUT_CODE>();
+  if (bounds.width <= 0) {
+    out.add(OUT_CODE.LEFT);
+    out.add(OUT_CODE.RIGHT);
+  } else if (px < bounds.x) {
+    out.add(OUT_CODE.LEFT);
+  } else if (px > bounds.x + bounds.width) {
+    out.add(OUT_CODE.RIGHT);
+  }
+  if (bounds.height <= 0) {
+    out.add(OUT_CODE.TOP);
+    out.add(OUT_CODE.BOTTOM);
+  } else if (py < bounds.y) {
+    out.add(OUT_CODE.TOP);
+  } else if (py > bounds.y + bounds.height) {
+    out.add(OUT_CODE.BOTTOM);
+  }
+  return out;
+}
+
+export function intersectsLine(bounds: IRectangle, line: ILine) {
+  let x1 = line.x1;
+  let y1 = line.y1;
+  let x2 = line.x2;
+  let y2 = line.y2;
+  // taken from JDK 8 java.awt.geom.Rectangle2D.Double#intersectsLine(double, double, double, double)
+  const out2 = Array.from(outcode(bounds, x2, y2));
+  if (out2.length === 0) {
+    return true;
+  }
+  let out1 = outcode(bounds, x1, y1);
+  while (out1.size !== 0) {
+    if (out2.some((a) => out1.has(a))) {
+      return false;
+    }
+    if (out1.has(OUT_CODE.RIGHT) || out1.has(OUT_CODE.LEFT)) {
+      let x = bounds.x;
+      if (out1.has(OUT_CODE.RIGHT)) {
+        x += bounds.width;
+      }
+      y1 = y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
+      x1 = x;
+    } else {
+      let y = bounds.y;
+      if (out1.has(OUT_CODE.BOTTOM)) {
+        y += bounds.height;
+      }
+      x1 = x1 + ((y - y1) * (x2 - x1)) / (y2 - y1);
+      y1 = y;
+    }
+    out1 = outcode(bounds, x1, y1);
+  }
+  return true;
+}
+
+export function fractionToLineCenter(bounds: IRectangle2, line: ILine) {
   let minDistance = Number.POSITIVE_INFINITY;
   let countIntersections = 0;
 
@@ -105,7 +169,7 @@ export function fractionToLineCenter(bounds: IRectangle2, line: Line) {
   return minDistance;
 }
 
-export function fractionToLineEnd(bounds: IRectangle2, line: Line) {
+export function fractionToLineEnd(bounds: IRectangle2, line: ILine) {
   let minDistance = Number.POSITIVE_INFINITY;
   let countIntersections = 0;
 
@@ -140,7 +204,7 @@ export function fractionToLineEnd(bounds: IRectangle2, line: Line) {
   return minDistance;
 }
 
-export function testIntersection(line: Line, bounds: IRectangle2) {
+export function testIntersection(line: ILine, bounds: IRectangle2) {
   let count = 0;
   // top
   const top = intersectLineLine(line, new Line(bounds.x, bounds.y, bounds.x2, bounds.y));

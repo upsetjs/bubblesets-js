@@ -1,31 +1,33 @@
-import { ILine, IRectangle, IPoint, ICircle, ICenterPoint } from './interfaces';
-import { calculateVirtualEdges } from './internal/routing';
-import { Area } from './model/Area';
-import { Line } from './model/Line';
-import { marchingSquares } from './model/MarchingSquares';
-import { Rectangle, boundingBox } from './model/Rectangle';
-import { PointPath } from './PointPath';
-import { addPadding } from './padding';
-import {
-  createRectangleInfluenceArea,
-  createLineInfluenceArea,
-  createGenericInfluenceArea,
-} from './internal/potentialAreas';
+import { ICircle, ILine, IRectangle } from './interfaces';
+import { createGenericInfluenceArea, createLineInfluenceArea, createRectangleInfluenceArea } from './potentialAreas';
+import { calculateVirtualEdges } from './routing';
 import { Circle } from './model';
+import { Area } from './model/Area';
+import { Line, lineBoundingBox } from './model/Line';
+import { marchingSquares } from './MarchingSquares';
+import { Rectangle } from './model/Rectangle';
+import { addPadding } from './padding';
+import { PointPath } from './PointPath';
 
-export interface IOutlineOptions {
+export interface IPotentialOptions {
   /**
    * how many pixels per potential area group to improve speed
    * @default 4
    */
   pixelGroup?: number;
+  morphBuffer?: number;
+}
 
+export interface IRoutingOptions {
+  virtualEdges?: boolean;
   /**
    * maximum number of iterations when computing routes between members
    * @default 100
    */
   maxRoutingIterations?: number;
-
+  morphBuffer?: number;
+}
+export interface IOutlineOptions {
   /**
    * maximum number of iterations when computing the contour
    * @default 20
@@ -36,18 +38,16 @@ export interface IOutlineOptions {
   edgeR1?: number;
   nodeR0?: number;
   nodeR1?: number;
-  morphBuffer?: number;
-  skip?: number;
 
   threshold?: number;
   memberInfluenceFactor?: number;
   edgeInfluenceFactor?: number;
   nonMemberInfluenceFactor?: number;
-
-  virtualEdges?: boolean;
 }
 
-const defaultOptions: Required<IOutlineOptions> = {
+export interface IBubbleSetOptions extends IRoutingOptions, IOutlineOptions, IPotentialOptions {}
+
+const defaultOptions: Required<IBubbleSetOptions> = {
   maxRoutingIterations: 100,
   maxMarchingIterations: 20,
   pixelGroup: 4,
@@ -56,7 +56,6 @@ const defaultOptions: Required<IOutlineOptions> = {
   nodeR0: 15,
   nodeR1: 50,
   morphBuffer: 10,
-  skip: 8,
 
   threshold: 1,
   memberInfluenceFactor: 1,
@@ -102,7 +101,7 @@ interface IEdge {
 
 export class BubbleSets {
   private readonly dirty = new Set<EDirty>();
-  private readonly o: Required<IOutlineOptions>;
+  private readonly o: Required<IBubbleSetOptions>;
   private readonly members: IMember[] = [];
   private readonly nonMembers: IMember[] = [];
   private virtualEdges: IEdge[] = [];
@@ -111,7 +110,7 @@ export class BubbleSets {
   private activeRegion = new Rectangle(0, 0, 0, 0);
   private potentialArea = new Area(1, 0, 0, 0, 0, 0, 0);
 
-  constructor(options: IOutlineOptions = {}) {
+  constructor(options: IBubbleSetOptions = {}) {
     this.o = Object.assign({}, defaultOptions, options);
   }
 
@@ -196,9 +195,7 @@ export class BubbleSets {
     const memberObjs = this.members.map((d) => d.obj);
     if (this.o.virtualEdges && (dirtyMembers || dirtyNonMembers)) {
       // update virtual edges
-      const nonMembersAsRects = this.nonMembers.map((d) =>
-        d.obj instanceof Rectangle ? d.obj : Rectangle.from(d.obj)
-      );
+      const nonMembersAsRects = this.nonMembers.map((d) => d.obj);
       const virtualEdges = calculateVirtualEdges(
         memberObjs,
         nonMembersAsRects,
@@ -220,7 +217,7 @@ export class BubbleSets {
     if (dirtyMembers || dirtyEdges) {
       // update the active region
       const edgesObj = this.virtualEdges.concat(this.edges).map((e) => e.obj);
-      const bb = computeActiveRegion(memberObjs, edgesObj);
+      const bb = unionBoundingBox(memberObjs, edgesObj);
       const padding = Math.max(this.o.edgeR1, this.o.nodeR1) + this.o.morphBuffer;
       const activeRegion = Rectangle.from(addPadding(bb, padding));
       if (!activeRegion.equals(this.activeRegion)) {
@@ -325,81 +322,107 @@ export class BubbleSets {
 
     const { o, potentialArea } = this;
 
-    const memberObjs = this.members.map((m) => m.obj);
-    const nonMembersInRange = this.nonMembers.filter((d) => d.area != null);
+    const members = this.members.map((m) => m.area!);
+    const edges = this.virtualEdges.concat(this.edges).map((d) => d.area!);
+    const nonMembers = this.nonMembers.filter((d) => d.area != null).map((d) => d.area!);
 
-    let threshold = o.threshold;
-    let memberInfluenceFactor = o.memberInfluenceFactor;
-    let edgeInfluenceFactor = o.edgeInfluenceFactor;
-    let nonMemberInfluenceFactor = o.nonMemberInfluenceFactor;
+    return calculatePotentialOutline(
+      potentialArea,
+      members,
+      edges,
+      nonMembers,
+      (p) => p.containsElements(this.members.map((m) => m.obj)),
+      o
+    );
+  }
+}
 
-    // using inverse a for numerical stability
-    const nodeInfA = (o.nodeR0 - o.nodeR1) * (o.nodeR0 - o.nodeR1);
-    const edgeInfA = (o.edgeR0 - o.edgeR1) * (o.edgeR0 - o.edgeR1);
+export function calculatePotentialOutline(
+  potentialArea: Area,
+  members: ReadonlyArray<Area>,
+  edges: ReadonlyArray<Area>,
+  nonMembers: ReadonlyArray<Area>,
+  validPath: (path: PointPath) => boolean,
+  o: Required<IOutlineOptions>
+) {
+  let threshold = o.threshold;
+  let memberInfluenceFactor = o.memberInfluenceFactor;
+  let edgeInfluenceFactor = o.edgeInfluenceFactor;
+  let nonMemberInfluenceFactor = o.nonMemberInfluenceFactor;
 
-    // try to march, check if surface contains all items
-    for (let iterations = 0; iterations < o.maxMarchingIterations; iterations++) {
-      potentialArea.clear();
+  // using inverse a for numerical stability
+  const nodeInfA = (o.nodeR0 - o.nodeR1) * (o.nodeR0 - o.nodeR1);
+  const edgeInfA = (o.edgeR0 - o.edgeR1) * (o.edgeR0 - o.edgeR1);
 
-      // add all positive energy (included items) first, as negative energy
-      // (morphing) requires all positives to be already set
-      if (memberInfluenceFactor !== 0) {
-        const f = memberInfluenceFactor / nodeInfA;
-        for (const item of this.members) {
-          // add node energy
-          potentialArea.incArea(item.area!, f);
-        }
-      }
+  // try to march, check if surface contains all items
+  for (let iterations = 0; iterations < o.maxMarchingIterations; iterations++) {
+    potentialArea.clear();
 
-      if (edgeInfluenceFactor !== 0) {
-        // add the influence of all the virtual edges
-        const f = edgeInfluenceFactor / edgeInfA;
-        for (const line of this.edges) {
-          potentialArea.incArea(line.area!, f);
-        }
-        for (const line of this.virtualEdges) {
-          potentialArea.incArea(line.area!, f);
-        }
-      }
-
-      // calculate negative energy contribution for all other visible items within bounds
-      if (nonMemberInfluenceFactor !== 0) {
-        const f = nonMemberInfluenceFactor / nodeInfA;
-        for (const item of nonMembersInRange) {
-          // add node energy
-          potentialArea.incArea(item.area!, f);
-        }
-      }
-
-      // compute contour
-      const contour = marchingSquares(potentialArea, threshold);
-      if (contour) {
-        // check if we hit all members
-        const sampled = sampleContour(contour, o);
-        if (coversAllMembers(memberObjs, sampled)) {
-          // found a valid path
-          return sampled;
-        }
-      }
-
-      // prepare for next iteration
-
-      // reduce negative influences first; this will allow the surface to
-      // pass without making it fatter all around (which raising the threshold does)
-      threshold *= 0.95;
-      if (iterations <= o.maxMarchingIterations * 0.5) {
-        memberInfluenceFactor *= 1.2;
-        edgeInfluenceFactor *= 1.2;
-      } else if (nonMemberInfluenceFactor != 0 && nonMembersInRange.length > 0) {
-        // after half the iterations, start increasing positive energy and lowering the threshold
-        nonMemberInfluenceFactor *= 0.8;
-      } else {
-        break;
+    // add all positive energy (included items) first, as negative energy
+    // (morphing) requires all positives to be already set
+    if (memberInfluenceFactor !== 0) {
+      const f = memberInfluenceFactor / nodeInfA;
+      for (const item of members) {
+        // add node energy
+        potentialArea.incArea(item, f);
       }
     }
-    // cannot find a solution
-    return new PointPath([]);
+
+    if (edgeInfluenceFactor !== 0) {
+      // add the influence of all the virtual edges
+      const f = edgeInfluenceFactor / edgeInfA;
+      for (const area of edges) {
+        potentialArea.incArea(area, f);
+      }
+    }
+
+    // calculate negative energy contribution for all other visible items within bounds
+    if (nonMemberInfluenceFactor !== 0) {
+      const f = nonMemberInfluenceFactor / nodeInfA;
+      for (const area of nonMembers) {
+        // add node energy
+        potentialArea.incArea(area, f);
+      }
+    }
+
+    // compute contour
+    const contour = marchingSquares(potentialArea, threshold);
+    if (contour && validPath(contour)) {
+      // found a valid path
+      return contour;
+    }
+
+    // prepare for next iteration
+
+    // reduce negative influences first; this will allow the surface to
+    // pass without making it fatter all around (which raising the threshold does)
+    threshold *= 0.95;
+    if (iterations <= o.maxMarchingIterations * 0.5) {
+      memberInfluenceFactor *= 1.2;
+      edgeInfluenceFactor *= 1.2;
+    } else if (nonMemberInfluenceFactor != 0 && nonMembers.length > 0) {
+      // after half the iterations, start increasing positive energy and lowering the threshold
+      nonMemberInfluenceFactor *= 0.8;
+    } else {
+      break;
+    }
   }
+  // cannot find a solution
+  return new PointPath([]);
+}
+
+export function unionBoundingBox(memberItems: IRectangle[], edgeItems: Line[]) {
+  if (memberItems.length === 0) {
+    return new Rectangle(0, 0, 0, 0);
+  }
+  const activeRegion = Rectangle.from(memberItems[0]);
+  for (const m of memberItems) {
+    activeRegion.add(m);
+  }
+  for (const l of edgeItems) {
+    activeRegion.add(lineBoundingBox(l));
+  }
+  return activeRegion;
 }
 
 export function createOutline(
@@ -416,51 +439,4 @@ export function createOutline(
   bb.pushNonMember(...nonMembers);
   bb.pushEdge(...edges);
   return bb.compute();
-}
-
-function computeActiveRegion(memberItems: IRectangle[], edgeItems: Line[]) {
-  if (memberItems.length === 0) {
-    return new Rectangle(0, 0, 0, 0);
-  }
-  const activeRegion = Rectangle.from(memberItems[0]);
-  for (const m of memberItems) {
-    activeRegion.add(m);
-  }
-  for (const l of edgeItems) {
-    activeRegion.add(l.asRect());
-  }
-  return activeRegion;
-}
-
-function sampleContour(contour: PointPath, o: Required<IOutlineOptions>) {
-  // start with global SKIP value, but decrease skip amount if there aren't enough points in the surface
-  let skip = o.skip;
-  // prepare viz attribute array
-  let size = contour.length;
-
-  if (skip > 1) {
-    size = Math.floor(contour.length / skip);
-    // if we reduced too much (fewer than three points in reduced surface) reduce skip and try again
-    while (size < 3 && skip > 1) {
-      skip -= 1;
-      size = Math.floor(contour.length / skip);
-    }
-  }
-
-  const finalHull: IPoint[] = [];
-  // copy hull values
-  for (let i = 0, j = 0; j < size; j++, i += skip) {
-    finalHull.push(contour.get(i));
-  }
-  return new PointPath(finalHull);
-}
-
-function coversAllMembers(members: ReadonlyArray<ICenterPoint>, path: PointPath) {
-  const bb = boundingBox(path.points);
-  if (!bb) {
-    return false;
-  }
-  return members.every((member) => {
-    return bb.containsPt(member.cx, member.cy) && path.withinArea(member.cx, member.cy);
-  });
 }

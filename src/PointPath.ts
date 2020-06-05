@@ -1,6 +1,6 @@
-import { shapeSimplifier, bSplineShapeGenerator } from './simplifiers';
-import { Line } from './model';
-import { IPoint } from './interfaces';
+import { shapeSimplifier, bSplineShapeGenerator, samplePath } from './simplifiers';
+import { Line, boundingBox } from './model';
+import { IPoint, ICenterPoint } from './interfaces';
 
 export class PointPath {
   readonly points: ReadonlyArray<IPoint>;
@@ -60,6 +60,10 @@ export class PointPath {
     }
   }
 
+  sample(skip?: number) {
+    return samplePath(skip)(this);
+  }
+
   simplify(tolerance?: number) {
     return shapeSimplifier(tolerance)(this);
   }
@@ -70,6 +74,16 @@ export class PointPath {
 
   apply(transformer: (path: PointPath) => PointPath) {
     return transformer(this);
+  }
+
+  containsElements(members: ReadonlyArray<ICenterPoint>) {
+    const bb = boundingBox(this.points);
+    if (!bb) {
+      return false;
+    }
+    return members.every((member) => {
+      return bb.containsPt(member.cx, member.cy) && this.withinArea(member.cx, member.cy);
+    });
   }
 
   withinArea(px: number, py: number) {

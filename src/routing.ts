@@ -4,15 +4,15 @@ import {
   Intersection,
   testIntersection,
   hasFractionToLineCenter,
-} from '../model/Intersection';
-import { Line } from '../model/Line';
-import { Rectangle } from '../model/Rectangle';
-import { doublePointsEqual, ptsDistanceSq } from '../utils';
-import { IPoint, point, ICircle, IRectangle2 } from '../interfaces';
+  intersectsLine,
+} from './Intersection';
+import { Line } from './model/Line';
+import { doublePointsEqual, ptsDistanceSq } from './utils';
+import { IPoint, point, ICircle, IRectangle2 } from './interfaces';
 
 export function calculateVirtualEdges(
   items: ReadonlyArray<ICircle>,
-  nonMembers: ReadonlyArray<Rectangle>,
+  nonMembers: ReadonlyArray<IRectangle2 & { containsPt(x: number, y: number): boolean }>,
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
@@ -34,7 +34,7 @@ export function calculateVirtualEdges(
 }
 
 function connectItem(
-  nonMembers: ReadonlyArray<Rectangle>,
+  nonMembers: ReadonlyArray<IRectangle2 & { containsPt(x: number, y: number): boolean }>,
   item: ICircle,
   visited: ICircle[],
   maxRoutingIterations: number,
@@ -59,7 +59,7 @@ function connectItem(
 
 function computeRoute(
   directLine: Line,
-  nonMembers: ReadonlyArray<Rectangle>,
+  nonMembers: ReadonlyArray<IRectangle2 & { containsPt(x: number, y: number): boolean }>,
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
@@ -150,7 +150,7 @@ function computeRoute(
   return scannedLines;
 }
 
-function mergeLines(scannedLines: Line[], nonMembers: ReadonlyArray<Rectangle>) {
+function mergeLines(scannedLines: Line[], nonMembers: ReadonlyArray<IRectangle2>) {
   const finalRoute: Line[] = [];
   // try to merge consecutive lines if possible
   while (scannedLines.length > 0) {
@@ -177,7 +177,7 @@ function mergeLines(scannedLines: Line[], nonMembers: ReadonlyArray<Rectangle>) 
 function calculateClosestNeighbor(
   itemCenter: IPoint,
   visited: ReadonlyArray<ICircle>,
-  nonMembers: ReadonlyArray<Rectangle>
+  nonMembers: ReadonlyArray<IRectangle2>
 ) {
   let minLengthSq = Number.POSITIVE_INFINITY;
   return visited.reduce((closestNeighbor, neighborItem) => {
@@ -236,12 +236,12 @@ function pointExists(pointToCheck: IPoint, lines: ReadonlyArray<Line>) {
   });
 }
 
-function getCenterItem(items: ReadonlyArray<Rectangle>, testLine: Line) {
+function getCenterItem(items: ReadonlyArray<IRectangle2>, testLine: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
-  let closestItem: Rectangle | null = null;
+  let closestItem: IRectangle2 | null = null;
 
   for (const item of items) {
-    if (!item.intersectsLine(testLine)) {
+    if (!intersectsLine(item, testLine)) {
       continue;
     }
     const distance = fractionToLineCenter(item, testLine);
@@ -254,9 +254,9 @@ function getCenterItem(items: ReadonlyArray<Rectangle>, testLine: Line) {
   return closestItem;
 }
 
-function itemsCuttingLine(items: ReadonlyArray<Rectangle>, testLine: Line) {
+function itemsCuttingLine(items: ReadonlyArray<IRectangle2>, testLine: Line) {
   return items.reduce((count, item) => {
-    if (item.intersectsLine(testLine) && hasFractionToLineCenter(item, testLine)) {
+    if (intersectsLine(item, testLine) && hasFractionToLineCenter(item, testLine)) {
       return count + 1;
     }
     return count;

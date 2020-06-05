@@ -41,7 +41,7 @@
 
       function updateOutline(bubbleSets, color, path, drawPotential = false) {
         const pointPath = bubbleSets.compute();
-        const outline = pointPath.simplify(0).bSplines().simplify(0);
+        const outline = pointPath.sample(8).simplify(0).bSplines().simplify(0);
         path.attr('d', outline);
         path.style('opacity', 0.5).style('fill', color).style('stroke', 'black');
 
