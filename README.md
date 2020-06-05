@@ -17,7 +17,7 @@ npm install --save bubblesets-js
 
 ```js
 const bubbleSets = new BubbleSets.BubbleSets();
-bubbleSets.pushMember(BubbleSets.rect(0, 0, 50, 20));
+bubbleSets.pushMember(BubbleSets.rect(30, 30, 50, 20));
 bubbleSets.pushMember(BubbleSets.rect(200, 100, 50, 20));
 bubbleSets.pushMember(BubbleSets.circle(240, 40, 10));
 
@@ -36,22 +36,23 @@ const ctx = canvas.getContext('2d');
 
 // canvas
 ctx.beginPath();
+cleanPath.draw(ctx);
+ctx.strokeStyle = 'black';
+ctx.fillStyle = 'rgba(0,0,255,0.2)';
+ctx.fill();
+ctx.stroke();
+
+ctx.beginPath();
 bubbleSets.drawMembers(ctx);
 ctx.fillStyle = 'steelblue';
 ctx.fill();
-ctx.beginPath();
-cleanPath.draw(ctx);
-ctx.strokeStyle = 'black';
-ctx.fillStyle = 'crimson';
-ctx.fill();
-ctx.stroke();
 ```
 
 ![sample](https://user-images.githubusercontent.com/4129778/83879033-52aaf280-a73d-11ea-9a19-d803718fec17.png)
 
 see [Samples](https://github.com/sgratzl/bubblesets-js/tree/master/samples) on Github
 
-or at this [![Open in CodePen][codepen]](https://codepen.io/sgratzl/pen/TODO)
+or at this [![Open in CodePen][codepen]](https://codepen.io/sgratzl/pen/MWKYRWo)
 
 ## Development Environment
 
