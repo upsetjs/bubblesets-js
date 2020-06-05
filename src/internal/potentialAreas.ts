@@ -24,7 +24,7 @@ function sample(
   distanceFunction: (x: number, y: number) => number
 ) {
   const padding2 = padding * padding;
-  const area = new Area(potentialArea.pixelGroup, rect.x, rect.y, rect.width, rect.height);
+  const area = potentialArea.createSub(rect);
 
   // find the affected subregion of potentialArea
   // for every point in active subregion of potentialArea, calculate
@@ -49,7 +49,7 @@ function sample(
 export function createRectangleInfluenceArea(rect: Rectangle, potentialArea: Area, padding: number) {
   const scaled = potentialArea.scale(rect);
   const padded = potentialArea.addPadding(scaled, padding);
-  const area = new Area(potentialArea.pixelGroup, padded.x, padded.y, padded.width, padded.height);
+  const area = potentialArea.createSub(padded);
   const paddingLeft = scaled.x - padded.x;
   const paddingTop = scaled.y - padded.y;
   const paddingRight = padded.x2 - scaled.x2;

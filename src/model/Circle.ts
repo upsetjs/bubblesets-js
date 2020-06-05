@@ -1,7 +1,7 @@
-import { ICircle } from '../interfaces';
+import { ICircle, IRectangle2 } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
 
-export class Circle {
+export class Circle implements IRectangle2, ICircle {
   constructor(public cx: number, public cy: number, public radius: number) {}
 
   get x() {

@@ -1,4 +1,4 @@
-import { IRectangle } from '../interfaces';
+import { IRectangle, IPoint } from '../interfaces';
 import { Rectangle } from './Rectangle';
 
 export class Area {
@@ -8,10 +8,10 @@ export class Area {
     public readonly x = 0,
     public readonly y = 0,
     public readonly width: number,
-    public readonly height: number
+    public readonly height: number,
+    pixels = new Float32Array(Math.max(0, width * height)).fill(0)
   ) {
-    this.pixels = new Float32Array(Math.max(0, width * height));
-    this.pixels.fill(0);
+    this.pixels = pixels;
   }
 
   get x2() {
@@ -22,6 +22,10 @@ export class Area {
     return this.y + this.height;
   }
 
+  createSub(rect: IRectangle) {
+    return new Area(this.pixelGroup, rect.x, rect.y, rect.width, rect.height);
+  }
+
   static fromPixelRegion(rect: IRectangle, pixelGroup: number) {
     return new Area(
       pixelGroup,
@@ -30,6 +34,10 @@ export class Area {
       Math.ceil(rect.width / pixelGroup),
       Math.ceil(rect.height / pixelGroup)
     );
+  }
+
+  copy(rect: IPoint) {
+    return new Area(this.pixelGroup, rect.x, rect.y, this.width, this.height, this.pixels);
   }
 
   boundX(pos: number) {
@@ -162,5 +170,47 @@ export class Area {
       r += '\n';
     }
     return r;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, offset = true) {
+    if (this.width <= 0 || this.height <= 0) {
+      return;
+    }
+    ctx.save();
+    if (offset) {
+      ctx.translate(this.x, this.y);
+    }
+    const min = this.pixels.reduce((acc, v) => Math.min(acc, v), Number.POSITIVE_INFINITY);
+    const max = this.pixels.reduce((acc, v) => Math.max(acc, v), Number.NEGATIVE_INFINITY);
+
+    const scale = (v: number) => (v - min) / (max - min);
+    ctx.scale(this.pixelGroup, this.pixelGroup);
+    for (let i = 0; i < this.width; i++) {
+      for (let j = 0; j < this.height; j++) {
+        const v = this.pixels[i + j * this.width];
+        ctx.fillStyle = `rgba(0, 0, 0, ${scale(v)})`;
+        ctx.fillRect(i, j, 1, 1);
+      }
+    }
+    ctx.restore();
+  }
+
+  drawThreshold(ctx: CanvasRenderingContext2D, threshold: number, offset = true) {
+    if (this.width <= 0 || this.height <= 0) {
+      return;
+    }
+    ctx.save();
+    if (offset) {
+      ctx.translate(this.x, this.y);
+    }
+    ctx.scale(this.pixelGroup, this.pixelGroup);
+    for (let i = 0; i < this.width; i++) {
+      for (let j = 0; j < this.height; j++) {
+        const v = this.pixels[i + j * this.width];
+        ctx.fillStyle = v > threshold ? 'black' : 'white';
+        ctx.fillRect(i, j, 1, 1);
+      }
+    }
+    ctx.restore();
   }
 }

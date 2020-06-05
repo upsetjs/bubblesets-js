@@ -1,8 +1,8 @@
 import { Line } from './Line';
-import { IPoint, IRectangle } from '../interfaces';
+import { IPoint, IRectangle, IRectangle2, ICircle } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
 
-export class Rectangle {
+export class Rectangle implements IRectangle2, ICircle {
   constructor(public x: number, public y: number, public width: number, public height: number) {}
 
   get x2() {
@@ -66,11 +66,11 @@ export class Rectangle {
     return this.width * this.height;
   }
 
-  intersects(that: Rectangle) {
-    if (this.area <= 0 || that.area <= 0) {
+  intersects(that: IRectangle) {
+    if (this.area <= 0 || that.width <= 0 || that.height <= 0) {
       return false;
     }
-    return that.x2 > this.x && that.y2 > this.y && that.x < this.x2 && that.y < this.y2;
+    return that.x + that.width > this.x && that.y + that.height > this.y && that.x < this.x2 && that.y < this.y2;
   }
 
   intersectsLine(line: Line) {

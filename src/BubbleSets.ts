@@ -18,6 +18,8 @@ export interface IOutlineOptions {
   nodeR1?: number;
   morphBuffer?: number;
   skip?: number;
+
+  debugContainer?: { potentialArea?: Area; threshold?: number };
 }
 
 const defaultOptions: Required<IOutlineOptions> = {
@@ -30,6 +32,7 @@ const defaultOptions: Required<IOutlineOptions> = {
   nodeR1: 50,
   morphBuffer: 10,
   skip: 8,
+  debugContainer: {},
 };
 
 export function createOutline(
@@ -57,8 +60,19 @@ export function createOutline(
 
   const potentialArea = Area.fromPixelRegion(activeRegion, o.pixelGroup);
 
-  const memberAreas = memberItems.map((rect) => createRectangleInfluenceArea(rect, potentialArea, o.nodeR1));
-  const nonMemberAreas = nonMembersInRegion.map((rect) => createRectangleInfluenceArea(rect, potentialArea, o.nodeR1));
+  const cache = new Map<string, Area>();
+  const createArea = (rect: Rectangle) => {
+    const key = `${rect.width}x${rect.height}`;
+    if (cache.has(key)) {
+      const r = cache.get(key)!;
+      return r.copy(rect);
+    }
+    const r = createRectangleInfluenceArea(rect, potentialArea, o.nodeR1);
+    cache.set(key, r);
+    return r;
+  };
+  const memberAreas = memberItems.map(createArea);
+  const nonMemberAreas = nonMembersInRegion.map(createArea);
   const edgeAreas = edgeItems.map((line) => createLineInfluenceArea(line, potentialArea, o.edgeR1));
 
   let threshold = 1;
@@ -109,6 +123,8 @@ export function createOutline(
       const sampled = sampleContour(contour, o);
       if (coversAllMembers(memberItems, sampled)) {
         // found a valid path
+        o.debugContainer.potentialArea = potentialArea;
+        o.debugContainer.threshold = threshold;
         return sampled;
       }
     }
@@ -128,6 +144,9 @@ export function createOutline(
       break;
     }
   }
+
+  o.debugContainer.potentialArea = potentialArea;
+  o.debugContainer.threshold = threshold;
   // cannot find a solution
   return new PointPath([]);
 }

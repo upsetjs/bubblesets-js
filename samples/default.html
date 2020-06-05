@@ -11,7 +11,11 @@
     <p>
       Add rectangles by clicking with the left or right mouse button on the canvas.
     </p>
-    <svg id="main" style="width: 90vw; height: 80vh; margin: 0 auto; border: 1px solid black;"></svg>
+    <canvas id="debug" style="position: absolute;"></canvas>
+    <svg
+      id="main"
+      style="position: absolute; width: 90vw; height: 80vh; margin: 0 auto; border: 1px solid black; z-index: 1;"
+    ></svg>
 
     <script>
       const rectanglesA = [];
@@ -20,6 +24,9 @@
       const items = main.append('g');
       const pathA = main.append('path');
       const pathB = main.append('path');
+      const canvas = document.getElementById('debug');
+
+      const container = {};
 
       function update() {
         updateOutline(rectanglesA, rectanglesB, 'crimson', pathA);
@@ -27,10 +34,17 @@
       }
 
       function updateOutline(rectangles, otherRectangles, color, path) {
-        const pointPath = BubbleSets.createOutline(rectangles, otherRectangles, []);
+        const pointPath = BubbleSets.createOutline(rectangles, otherRectangles, [], {
+          debugContainer: container,
+        });
         const outline = pointPath.simplify(0).bSplines().simplify(0);
         path.attr('d', outline);
         path.style('opacity', 0.5).style('fill', color).style('stroke', 'black');
+
+        const bb = main.node().getBoundingClientRect();
+        canvas.width = bb.width;
+        canvas.height = bb.height;
+        container.potentialArea.draw(canvas.getContext('2d'), true);
       }
 
       function addRect(rectangles, color, cx, cy) {
