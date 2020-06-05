@@ -33,7 +33,7 @@ export class Circle implements IRectangle2, ICircle {
   }
 
   containsPt(x: number, y: number) {
-    return ptsDistanceSq(this.cx, this.cy, x, y) < this.radius ** this.radius;
+    return ptsDistanceSq(this.cx, this.cy, x, y) < this.radius * this.radius;
   }
 
   distSquare(tempX: number, tempY: number) {
