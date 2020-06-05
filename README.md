@@ -59,6 +59,6 @@ yarn release:pre
 
 [npm-image]: https://badge.fury.io/js/bubblesets-js.svg
 [npm-url]: https://npmjs.org/package/bubblesets-js
-[github-actions-image]: https://github.com/sgratzl/bubblesets-js/workflows/nodeci/badge.svg
+[github-actions-image]: https://github.com/sgratzl/bubblesets-js/workflows/ci/badge.svg
 [github-actions-url]: https://github.com/sgratzl/bubblesets-js/actions
 [codepen]: https://img.shields.io/badge/CodePen-open-blue?logo=codepen
