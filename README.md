@@ -13,6 +13,23 @@ npm install --save bubblesets-js
 
 ## Usage
 
+```js
+const members = [BubbleSets.rect(0, 0, 50, 20), BubbleSets.rect(200, 100, 50, 20)];
+const notMembers = [];
+const edges = [];
+
+const pointPath = BubbleSets.createOutline(members, notMembers, edges);
+
+const cleanPath = pointPath.simplify(0).bSplines().simplify(0);
+
+// svg path
+const path = document.createElement('path');
+path.setAttribute('d', cleanPath.toString());
+
+// canvas
+cleanPath.draw(ctx);
+```
+
 see [Samples](https://github.com/sgratzl/bubblesets-js/tree/master/samples) on Github
 
 or at this [![Open in CodePen][codepen]](https://codepen.io/sgratzl/pen/TODO)
@@ -41,7 +58,7 @@ yarn release:pre
 ```
 
 [npm-image]: https://badge.fury.io/js/bubblesets-js.svg
-[npm-url]: https://npmjs.org/package/sgratzl/bubblesets-js
+[npm-url]: https://npmjs.org/package/bubblesets-js
 [github-actions-image]: https://github.com/sgratzl/bubblesets-js/workflows/nodeci/badge.svg
 [github-actions-url]: https://github.com/sgratzl/bubblesets-js/actions
 [codepen]: https://img.shields.io/badge/CodePen-open-blue?logo=codepen

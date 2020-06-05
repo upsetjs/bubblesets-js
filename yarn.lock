@@ -1558,40 +1558,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@sgratzl/bubblesets-js@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "@sgratzl/bubblesets-js@workspace:."
-  dependencies:
-    "@rollup/plugin-commonjs": ^12.0.0
-    "@types/d3-contour": ^1.3.0
-    "@types/jest": ^25.2.3
-    "@typescript-eslint/eslint-plugin": ^3.0.2
-    "@typescript-eslint/parser": ^3.0.2
-    "@yarnpkg/pnpify": ^2.0.0-rc.22
-    d3-contour: ^1.3.2
-    eslint: ^7.1.0
-    eslint-config-prettier: ^6.11.0
-    eslint-config-react-app: ^5.2.1
-    eslint-plugin-flowtype: ^5.1.3
-    eslint-plugin-import: ^2.20.2
-    eslint-plugin-jsx-a11y: ^6.2.3
-    eslint-plugin-prettier: ^3.1.3
-    eslint-plugin-react: ^7.20.0
-    eslint-plugin-react-hooks: ^4.0.4
-    prettier: ^2.0.5
-    release-it: ^13.6.1
-    rimraf: ^3.0.2
-    rollup: ^2.12.0
-    rollup-plugin-cleanup: ^3.1.1
-    rollup-plugin-dts: ^1.4.7
-    rollup-plugin-pnp-resolve: ^2.0.0
-    tsdx: ~0.13.2
-    tslib: ^2.0.0
-    typedoc: ^0.17.7
-    typescript: ^3.9.3
-  languageName: unknown
-  linkType: soft
-
 "@sindresorhus/is@npm:^0.14.0":
   version: 0.14.0
   resolution: "@sindresorhus/is@npm:0.14.0"
@@ -2876,6 +2842,40 @@ __metadata:
   checksum: 3/302af195672988c21be9590b0b4fcacf9bd5bc116a32cbb5f613b21800fce8ee6aa1c57e76bbfa15a60269fe48885d062383e353fbaa821dbf06e92f72cc8b7d
   languageName: node
   linkType: hard
+
+"bubblesets-js@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "bubblesets-js@workspace:."
+  dependencies:
+    "@rollup/plugin-commonjs": ^12.0.0
+    "@types/d3-contour": ^1.3.0
+    "@types/jest": ^25.2.3
+    "@typescript-eslint/eslint-plugin": ^3.0.2
+    "@typescript-eslint/parser": ^3.0.2
+    "@yarnpkg/pnpify": ^2.0.0-rc.22
+    d3-contour: ^1.3.2
+    eslint: ^7.1.0
+    eslint-config-prettier: ^6.11.0
+    eslint-config-react-app: ^5.2.1
+    eslint-plugin-flowtype: ^5.1.3
+    eslint-plugin-import: ^2.20.2
+    eslint-plugin-jsx-a11y: ^6.2.3
+    eslint-plugin-prettier: ^3.1.3
+    eslint-plugin-react: ^7.20.0
+    eslint-plugin-react-hooks: ^4.0.4
+    prettier: ^2.0.5
+    release-it: ^13.6.1
+    rimraf: ^3.0.2
+    rollup: ^2.12.0
+    rollup-plugin-cleanup: ^3.1.1
+    rollup-plugin-dts: ^1.4.7
+    rollup-plugin-pnp-resolve: ^2.0.0
+    tsdx: ~0.13.2
+    tslib: ^2.0.0
+    typedoc: ^0.17.7
+    typescript: ^3.9.3
+  languageName: unknown
+  linkType: soft
 
 "buffer-from@npm:1.x, buffer-from@npm:^1.0.0":
   version: 1.1.1

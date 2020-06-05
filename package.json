@@ -1,5 +1,5 @@
 {
-  "name": "@sgratzl/bubblesets-js",
+  "name": "bubblesets-js",
   "description": "JavaScript implementation of bubble sets by Christopher Collins",
   "version": "1.0.0",
   "author": {
