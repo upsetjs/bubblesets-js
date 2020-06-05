@@ -62,9 +62,9 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
       switch (state) {
         case -1:
           return true; // Marched out of bounds
-        case N:
-        case W:
-        case E:
+        case 0:
+        case 3:
+        case 2:
         case 7:
           direction = E;
           break;
@@ -76,7 +76,7 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
         case 6:
           direction = direction == N ? W : E;
           break;
-        case S:
+        case 1:
         case 13:
         case 5:
           direction = N;

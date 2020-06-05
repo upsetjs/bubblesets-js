@@ -1,40 +1,36 @@
 import { Rectangle, Line, Circle } from '../model';
 import { Area } from '../model/Area';
 import { ptsDistanceSq } from '../utils';
+import { addPadding } from '../padding';
 
 export function createLineInfluenceArea(line: Line, potentialArea: Area, padding: number) {
-  const lr = line.asRect();
+  const lr = addPadding(line.asRect(), padding);
   const scaled = potentialArea.scale(lr);
-  const padded = potentialArea.addPadding(scaled, padding);
-  return sample(padded, potentialArea, padding, (x, y) => line.ptSegDistSq(x, y));
+  const area = potentialArea.createSub(scaled, lr);
+  return sample(area, potentialArea, padding, (x, y) => line.ptSegDistSq(x, y));
 }
 
 export function createCircleInfluenceArea(circle: Circle, potentialArea: Area, padding: number) {
-  const scaled = potentialArea.scale(circle);
-  const padded = potentialArea.addPadding(scaled, padding);
-  return sample(padded, potentialArea, padding, (x, y) =>
+  const lr = addPadding(circle, padding);
+  const scaled = potentialArea.scale(lr);
+  const area = potentialArea.createSub(scaled, lr);
+  return sample(area, potentialArea, padding, (x, y) =>
     Math.max(0, ptsDistanceSq(circle.cx, circle.cy, x, y) - circle.radius ** 2)
   );
 }
 
-function sample(
-  rect: Rectangle,
-  potentialArea: Area,
-  padding: number,
-  distanceFunction: (x: number, y: number) => number
-) {
+function sample(area: Area, potentialArea: Area, padding: number, distanceFunction: (x: number, y: number) => number) {
   const padding2 = padding * padding;
-  const area = potentialArea.createSub(rect);
 
   // find the affected subregion of potentialArea
   // for every point in active subregion of potentialArea, calculate
   // distance to nearest point on rectangle and add influence
 
-  for (let y = 0; y < rect.height; y++) {
-    for (let x = 0; x < rect.width; x++) {
+  for (let y = 0; y < area.height; y++) {
+    for (let x = 0; x < area.width; x++) {
       // convert back to screen coordinates
-      const tempX = potentialArea.invertScaleX(rect.x + x);
-      const tempY = potentialArea.invertScaleY(rect.y + y);
+      const tempX = potentialArea.invertScaleX(area.i + x);
+      const tempY = potentialArea.invertScaleY(area.j + y);
       const distanceSq = distanceFunction(tempX, tempY);
       // only influence if less than r1
       if (distanceSq < padding2) {
@@ -49,7 +45,7 @@ function sample(
 export function createRectangleInfluenceArea(rect: Rectangle, potentialArea: Area, padding: number) {
   const scaled = potentialArea.scale(rect);
   const padded = potentialArea.addPadding(scaled, padding);
-  const area = potentialArea.createSub(padded);
+  const area = potentialArea.createSub(padded, { x: rect.x - padding, y: rect.y - padding });
   const paddingLeft = scaled.x - padded.x;
   const paddingTop = scaled.y - padded.y;
   const paddingRight = padded.x2 - scaled.x2;

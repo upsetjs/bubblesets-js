@@ -65,7 +65,7 @@ export function createOutline(
     const key = `${rect.width}x${rect.height}`;
     if (cache.has(key)) {
       const r = cache.get(key)!;
-      return r.copy(rect);
+      return potentialArea.copy(r, addPadding(rect, o.nodeR1));
     }
     const r = createRectangleInfluenceArea(rect, potentialArea, o.nodeR1);
     cache.set(key, r);
