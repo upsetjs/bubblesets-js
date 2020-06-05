@@ -1,5 +1,6 @@
 import { linePtSegDistSq } from '../utils';
 import { Rectangle } from './Rectangle';
+import { ILine } from '../interfaces';
 
 export class Line {
   constructor(public x1: number, public y1: number, public x2: number, public y2: number) {}
@@ -11,6 +12,14 @@ export class Line {
     const maxY = Math.max(this.y1, this.y2);
 
     return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+  }
+
+  equals(that: ILine) {
+    return this.x1 === that.x1 && this.y1 === that.y1 && this.x2 === that.x2 && this.y2 === that.y2;
+  }
+
+  toString() {
+    return `Line(from=(${this.x1},${this.y1}),to=(${this.x2},${this.y2}))`;
   }
 
   static from(l: { x1: number; y1: number; x2: number; y2: number }) {

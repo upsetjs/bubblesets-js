@@ -27,21 +27,23 @@
       const pathB = main.append('path');
       const canvas = document.getElementById('debug');
       const checkbox = document.getElementById('showDebug');
+
+      const container = {};
+      const bubbleSetsA = new BubbleSets.BubbleSets({
+        debugContainer: container,
+      });
+      const bubbleSetsB = new BubbleSets.BubbleSets();
       checkbox.onchange = () => {
         canvas.style.display = checkbox.checked ? '' : 'none';
       };
 
-      const container = {};
-
       function update() {
-        updateOutline(rectanglesA, rectanglesB, 'crimson', pathA, checkbox.checked);
-        updateOutline(rectanglesB, rectanglesA, 'cornflowerblue', pathB);
+        updateOutline(bubbleSetsA, 'crimson', pathA, checkbox.checked);
+        updateOutline(bubbleSetsB, 'cornflowerblue', pathB);
       }
 
-      function updateOutline(rectangles, otherRectangles, color, path, drawPotential = false) {
-        const pointPath = BubbleSets.createOutline(rectangles, otherRectangles, [], {
-          debugContainer: container,
-        });
+      function updateOutline(bubbleSets, color, path, drawPotential = false) {
+        const pointPath = bubbleSets.compute();
         const outline = pointPath.simplify(0).bSplines().simplify(0);
         path.attr('d', outline);
         path.style('opacity', 0.5).style('fill', color).style('stroke', 'black');
@@ -54,7 +56,7 @@
         }
       }
 
-      function addRect(rectangles, color, cx, cy) {
+      function addRect(bubbleSets, antiBubbleSets, color, cx, cy) {
         const width = 40;
         const height = 30;
         const x = cx - width * 0.5;
@@ -62,12 +64,13 @@
         const elem = items.append('rect');
         elem.attr('x', x).attr('y', y).attr('width', width).attr('height', height);
         elem.style('stroke', 'black').style('stroke-width', 1).style('fill', color);
-        rectangles.push(BubbleSets.addPadding({ x, y, width, height }, 5));
+        bubbleSets.pushMember(BubbleSets.addPadding({ x, y, width, height }, 5));
+        antiBubbleSets.pushNonMember(BubbleSets.addPadding({ x, y, width, height }, 5));
         update();
       }
 
       main.on('click', () => {
-        addRect(rectanglesA, 'cornflowerblue', d3.event.offsetX, d3.event.offsetY);
+        addRect(bubbleSetsA, bubbleSetsB, 'cornflowerblue', d3.event.offsetX, d3.event.offsetY);
       });
       let oldX = Number.NaN;
       let oldY = Number.NaN;
@@ -75,7 +78,7 @@
         if (oldX === d3.event.offsetX && oldY === d3.event.offsetY) return;
         oldX = d3.event.offsetX;
         oldY = d3.event.offsetY;
-        addRect(rectanglesB, 'crimson', d3.event.offsetX, d3.event.offsetY);
+        addRect(bubbleSetsB, bubbleSetsA, 'crimson', d3.event.offsetX, d3.event.offsetY);
         d3.event.preventDefault();
       });
     </script>

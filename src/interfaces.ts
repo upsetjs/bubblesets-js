@@ -1,5 +1,10 @@
 export declare type IPoint = { x: number; y: number };
 
+export interface ICenterPoint {
+  cx: number;
+  cy: number;
+}
+
 export interface IRectangle extends IPoint {
   width: number;
   height: number;
@@ -17,9 +22,7 @@ export interface ILine {
   y2: number;
 }
 
-export interface ICircle {
-  cx: number;
-  cy: number;
+export interface ICircle extends ICenterPoint {
   radius: number;
 }
 

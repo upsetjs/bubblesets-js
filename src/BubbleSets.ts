@@ -1,4 +1,4 @@
-import { ILine, IRectangle, IPoint, ICircle } from './interfaces';
+import { ILine, IRectangle, IPoint, ICircle, ICenterPoint } from './interfaces';
 import { calculateVirtualEdges } from './internal/routing';
 import { Area } from './model/Area';
 import { Line } from './model/Line';
@@ -72,72 +72,229 @@ function isCircle(v: IRectangle | ICircle): v is ICircle {
   return v != null && typeof (v as ICircle).radius === 'number';
 }
 
-export class BubbleSets {
-  private readonly o: Required<IOutlineOptions>;
-  private readonly members: (Rectangle | Circle)[] = [];
-  private readonly nonMembers: Rectangle[] = [];
-  private readonly givenEdges: Line[] = [];
-  private edges: Line[] = [];
+function isEqual(a: IRectangle | ICircle, b: IRectangle | ICircle) {
+  if (isCircle(a) !== isCircle(b)) {
+    return false;
+  }
+  if (isCircle(a)) {
+    const bc = b as ICircle;
+    return a.cx === bc.cx && a.cy === bc.cy && a.radius === bc.radius;
+  }
+  const br = b as IRectangle;
+  return a.x === br.x && a.y === br.y && a.width === br.width && a.height === br.height;
+}
 
-  private activeRegion: Rectangle = new Rectangle(0, 0, 0, 0);
-  private potentialArea: Area = new Area(1, 0, 0, 0, 0, 0, 0);
-  private memberAreas: Area[] = [];
-  private nonMembersInRegion: Rectangle[] = [];
-  private nonMemberAreas: Area[] = [];
-  private edgeAreas: Area[] = [];
+enum EDirty {
+  MEMBERS,
+  NON_MEMBERS,
+  EDGES,
+}
+
+interface IMember {
+  readonly raw: IRectangle | ICircle;
+  obj: Rectangle | Circle;
+  area: Area | null;
+}
+
+interface IEdge {
+  readonly raw: ILine;
+  obj: Line;
+  area: Area | null;
+}
+
+export class BubbleSets {
+  private readonly dirty = new Set<EDirty>();
+  private readonly o: Required<IOutlineOptions>;
+  private readonly members: IMember[] = [];
+  private readonly nonMembers: IMember[] = [];
+  private virtualEdges: IEdge[] = [];
+  private readonly edges: IEdge[] = [];
+
+  private activeRegion = new Rectangle(0, 0, 0, 0);
+  private potentialArea = new Area(1, 0, 0, 0, 0, 0, 0);
 
   constructor(options: IOutlineOptions = {}) {
     this.o = Object.assign({}, defaultOptions, options);
   }
 
-  pushAll(
-    members: ReadonlyArray<IRectangle | ICircle>,
-    nonMembers: ReadonlyArray<IRectangle> = [],
-    edges: ReadonlyArray<ILine> = []
-  ) {
+  pushMember(...members: ReadonlyArray<IRectangle | ICircle>) {
+    if (members.length === 0) {
+      return;
+    }
+    this.dirty.add(EDirty.MEMBERS);
     for (const v of members) {
-      this.members.push(isCircle(v) ? Circle.from(v) : Rectangle.from(v));
+      this.members.push({
+        raw: v,
+        obj: isCircle(v) ? Circle.from(v) : Rectangle.from(v),
+        area: null,
+      });
     }
+  }
+
+  removeMember(member: IRectangle | ICircle) {
+    const index = this.members.findIndex((d) => isEqual(d.raw, member));
+    if (index < 0) {
+      return false;
+    }
+    this.members.splice(index, 1);
+    this.dirty.add(EDirty.MEMBERS);
+    return true;
+  }
+
+  removeNonMember(nonMember: IRectangle | ICircle) {
+    const index = this.nonMembers.findIndex((d) => isEqual(d.raw, nonMember));
+    if (index < 0) {
+      return false;
+    }
+    this.nonMembers.splice(index, 1);
+    this.dirty.add(EDirty.NON_MEMBERS);
+    return true;
+  }
+
+  removeEdge(edge: ILine) {
+    const index = this.edges.findIndex((d) => d.obj.equals(edge));
+    if (index < 0) {
+      return false;
+    }
+    this.edges.splice(index, 1);
+    this.dirty.add(EDirty.NON_MEMBERS);
+    return true;
+  }
+
+  pushNonMember(...nonMembers: ReadonlyArray<IRectangle | ICircle>) {
+    if (nonMembers.length === 0) {
+      return;
+    }
+    this.dirty.add(EDirty.NON_MEMBERS);
     for (const v of nonMembers) {
-      this.nonMembers.push(Rectangle.from(v));
-    }
-    for (const edge of edges) {
-      this.givenEdges.push(Line.from(edge));
-    }
-    this.updateEdges();
-    this.updateAreas();
-  }
-
-  private updateEdges() {
-    // calculate and store virtual edges
-    this.edges = calculateVirtualEdges(this.members, this.nonMembers, this.o.maxRoutingIterations, this.o.morphBuffer);
-    for (const e of this.givenEdges) {
-      this.edges.push(e);
+      this.nonMembers.push({
+        raw: v,
+        obj: isCircle(v) ? Circle.from(v) : Rectangle.from(v),
+        area: null,
+      });
     }
   }
 
-  private updateAreas() {
-    this.activeRegion = computeActiveRegion(this.members, this.edges, this.o);
-    this.nonMembersInRegion = this.nonMembers.filter((item) => this.activeRegion.intersects(item));
-    this.potentialArea = Area.fromPixelRegion(this.activeRegion, this.o.pixelGroup);
+  pushEdge(...edges: ReadonlyArray<ILine>) {
+    if (edges.length === 0) {
+      return;
+    }
+    this.dirty.add(EDirty.EDGES);
+    for (const v of edges) {
+      this.edges.push({
+        raw: v,
+        obj: Line.from(v),
+        area: null,
+      });
+    }
+  }
 
-    const cache = new Map<string, Area>();
-    const createArea = (rect: Rectangle | Circle) => {
-      const key = `${rect.width}x${rect.height}x${rect instanceof Rectangle ? 'R' : 'C'}`;
-      if (cache.has(key)) {
-        const r = cache.get(key)!;
-        return this.potentialArea.copy(r, { x: rect.x - this.o.nodeR1, y: rect.y - this.o.nodeR1 });
+  private update() {
+    const dirtyMembers = this.dirty.has(EDirty.MEMBERS);
+    const dirtyNonMembers = this.dirty.has(EDirty.NON_MEMBERS);
+    let dirtyEdges = this.dirty.has(EDirty.EDGES);
+    this.dirty.clear();
+
+    const memberObjs = this.members.map((d) => d.obj);
+    if (dirtyMembers || dirtyNonMembers) {
+      // update virtual edges
+      const nonMembersAsRects = this.nonMembers.map((d) =>
+        d.obj instanceof Rectangle ? d.obj : Rectangle.from(d.obj)
+      );
+      const virtualEdges = calculateVirtualEdges(
+        memberObjs,
+        nonMembersAsRects,
+        this.o.maxRoutingIterations,
+        this.o.morphBuffer
+      );
+
+      const old = new Map<string, Area | null>(this.virtualEdges.map((e) => [e.obj.toString(), e.area]));
+      // reuse edge areas if possible
+      this.virtualEdges = virtualEdges.map((e) => ({
+        raw: e,
+        obj: e,
+        area: old.get(e.toString()) ?? null,
+      }));
+      dirtyEdges = true;
+    }
+
+    let activeRegionDirty = false;
+    if (dirtyMembers || dirtyEdges) {
+      // update the active region
+      const edgesObj = this.virtualEdges.concat(this.edges).map((e) => e.obj);
+      const bb = computeActiveRegion(memberObjs, edgesObj);
+      const padding = Math.max(this.o.edgeR1, this.o.nodeR1) + this.o.morphBuffer;
+      const activeRegion = Rectangle.from(addPadding(bb, padding));
+      if (!activeRegion.equals(this.activeRegion)) {
+        activeRegionDirty = true;
+        this.activeRegion = activeRegion;
+      }
+    }
+
+    if (activeRegionDirty) {
+      const potentialWidth = Math.ceil(this.activeRegion.width / this.o.pixelGroup);
+      const potentialHeight = Math.ceil(this.activeRegion.height / this.o.pixelGroup);
+
+      if (this.activeRegion.x !== this.potentialArea.pixelX || this.activeRegion.y !== this.potentialArea.pixelY) {
+        // full recreate
+        this.potentialArea = Area.fromPixelRegion(this.activeRegion, this.o.pixelGroup);
+        this.members.forEach((m) => (m.area = null));
+        this.nonMembers.forEach((m) => (m.area = null));
+        this.edges.forEach((m) => (m.area = null));
+        this.virtualEdges.forEach((m) => (m.area = null));
+      } else if (potentialWidth !== this.potentialArea.width || potentialHeight !== this.potentialArea.height) {
+        // recreate but we can keep the existing areas
+        this.potentialArea = Area.fromPixelRegion(this.activeRegion, this.o.pixelGroup);
+      }
+    }
+
+    // update
+    const existing = new Map<string, Area>();
+    const addCache = (m: IMember) => {
+      if (m.area) {
+        const key = `${m.obj.width}x${m.obj.height}x${m.obj instanceof Rectangle ? 'R' : 'C'}`;
+        existing.set(key, m.area);
+      }
+    };
+    const createOrAddCache = (m: IMember) => {
+      if (m.area) {
+        return;
+      }
+      const key = `${m.obj.width}x${m.obj.height}x${m.obj instanceof Rectangle ? 'R' : 'C'}`;
+      if (existing.has(key)) {
+        const r = existing.get(key)!;
+        m.area = this.potentialArea.copy(r, { x: m.obj.x - this.o.nodeR1, y: m.obj.y - this.o.nodeR1 });
+        return;
       }
       const r =
-        rect instanceof Rectangle
-          ? createRectangleInfluenceArea(rect, this.potentialArea, this.o.nodeR1)
-          : createGenericInfluenceArea(rect, this.potentialArea, this.o.nodeR1);
-      cache.set(key, r);
-      return r;
+        m.obj instanceof Rectangle
+          ? createRectangleInfluenceArea(m.obj, this.potentialArea, this.o.nodeR1)
+          : createGenericInfluenceArea(m.obj, this.potentialArea, this.o.nodeR1);
+      m.area = r;
+      existing.set(key, r);
     };
-    this.memberAreas = this.members.map(createArea);
-    this.nonMemberAreas = this.nonMembersInRegion.map(createArea);
-    this.edgeAreas = this.edges.map((line) => createLineInfluenceArea(line, this.potentialArea, this.o.edgeR1));
+    this.members.forEach(addCache);
+    this.nonMembers.forEach(addCache);
+
+    this.members.forEach(createOrAddCache);
+    this.nonMembers.forEach((m) => {
+      if (!this.activeRegion.intersects(m.obj)) {
+        m.area = null;
+      } else {
+        createOrAddCache(m);
+      }
+    });
+
+    this.edges.forEach((edge) => {
+      if (!edge.area) {
+        edge.area = createLineInfluenceArea(edge.obj, this.potentialArea, this.o.edgeR1);
+      }
+    });
+    this.virtualEdges.forEach((edge) => {
+      if (!edge.area) {
+        edge.area = createLineInfluenceArea(edge.obj, this.potentialArea, this.o.edgeR1);
+      }
+    });
   }
 
   compute() {
@@ -145,7 +302,14 @@ export class BubbleSets {
       return new PointPath([]);
     }
 
-    const { members: memberItems, o, memberAreas, nonMemberAreas, edgeAreas, nonMembersInRegion, potentialArea } = this;
+    if (this.dirty.size > 0) {
+      this.update();
+    }
+
+    const { o, potentialArea } = this;
+
+    const memberObjs = this.members.map((m) => m.obj);
+    const nonMembersInRange = this.nonMembers.filter((d) => d.area != null);
 
     let threshold = o.threshold;
     let memberInfluenceFactor = o.memberInfluenceFactor;
@@ -164,26 +328,29 @@ export class BubbleSets {
       // (morphing) requires all positives to be already set
       if (memberInfluenceFactor !== 0) {
         const f = memberInfluenceFactor / nodeInfA;
-        for (const item of memberAreas) {
+        for (const item of this.members) {
           // add node energy
-          potentialArea.incArea(item, f);
+          potentialArea.incArea(item.area!, f);
         }
       }
 
       if (edgeInfluenceFactor !== 0) {
         // add the influence of all the virtual edges
         const f = edgeInfluenceFactor / edgeInfA;
-        for (const line of edgeAreas) {
-          potentialArea.incArea(line, f);
+        for (const line of this.edges) {
+          potentialArea.incArea(line.area!, f);
+        }
+        for (const line of this.virtualEdges) {
+          potentialArea.incArea(line.area!, f);
         }
       }
 
       // calculate negative energy contribution for all other visible items within bounds
       if (nonMemberInfluenceFactor !== 0) {
         const f = nonMemberInfluenceFactor / nodeInfA;
-        for (const item of nonMemberAreas) {
+        for (const item of nonMembersInRange) {
           // add node energy
-          potentialArea.incArea(item, f);
+          potentialArea.incArea(item.area!, f);
         }
       }
 
@@ -192,7 +359,7 @@ export class BubbleSets {
       if (contour) {
         // check if we hit all members
         const sampled = sampleContour(contour, o);
-        if (coversAllMembers(memberItems, sampled)) {
+        if (coversAllMembers(memberObjs, sampled)) {
           // found a valid path
           o.debugContainer.potentialArea = potentialArea;
           o.debugContainer.threshold = threshold;
@@ -208,7 +375,7 @@ export class BubbleSets {
       if (iterations <= o.maxMarchingIterations * 0.5) {
         memberInfluenceFactor *= 1.2;
         edgeInfluenceFactor *= 1.2;
-      } else if (nonMemberInfluenceFactor != 0 && nonMembersInRegion.length > 0) {
+      } else if (nonMemberInfluenceFactor != 0 && nonMembersInRange.length > 0) {
         // after half the iterations, start increasing positive energy and lowering the threshold
         nonMemberInfluenceFactor *= 0.8;
       } else {
@@ -233,24 +400,23 @@ export function createOutline(
     return new PointPath([]);
   }
   const bb = new BubbleSets(options);
-  bb.pushAll(members, nonMembers, edges);
+  bb.pushMember(...members);
+  bb.pushNonMember(...nonMembers);
+  bb.pushEdge(...edges);
   return bb.compute();
 }
 
-function computeActiveRegion(
-  memberItems: IRectangle[],
-  edgeItems: Line[],
-  o: Required<IOutlineOptions> & IOutlineOptions
-) {
-  let activeRegion = Rectangle.from(memberItems[0]);
+function computeActiveRegion(memberItems: IRectangle[], edgeItems: Line[]) {
+  if (memberItems.length === 0) {
+    return new Rectangle(0, 0, 0, 0);
+  }
+  const activeRegion = Rectangle.from(memberItems[0]);
   for (const m of memberItems) {
     activeRegion.add(m);
   }
   for (const l of edgeItems) {
     activeRegion.add(l.asRect());
   }
-  const padding = Math.max(o.edgeR1, o.nodeR1) + o.morphBuffer;
-  activeRegion = Rectangle.from(addPadding(activeRegion, padding));
   return activeRegion;
 }
 
@@ -277,7 +443,7 @@ function sampleContour(contour: PointPath, o: Required<IOutlineOptions>) {
   return new PointPath(finalHull);
 }
 
-function coversAllMembers(members: ReadonlyArray<ICircle>, path: PointPath) {
+function coversAllMembers(members: ReadonlyArray<ICenterPoint>, path: PointPath) {
   const bb = boundingBox(path.points);
   if (!bb) {
     return false;

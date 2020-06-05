@@ -16,6 +16,9 @@ export function calculateVirtualEdges(
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
+  if (items.length === 0) {
+    return [];
+  }
   const visited: ICircle[] = [];
   const virtualEdges: Line[] = [];
   const sorted = sortByDistanceToCentroid(items);

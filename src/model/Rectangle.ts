@@ -28,6 +28,10 @@ export class Rectangle implements IRectangle2, ICircle {
     return new Rectangle(r.x, r.y, r.width, r.height);
   }
 
+  equals(that: IRectangle) {
+    return this.x === that.x && this.y === that.y && this.width === that.width && this.height === that.height;
+  }
+
   clone() {
     return new Rectangle(this.x, this.y, this.width, this.height);
   }
