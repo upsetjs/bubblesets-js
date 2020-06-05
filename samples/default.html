@@ -10,6 +10,7 @@
     <h3>BubbleSets for JavaScript</h3>
     <p>
       Add rectangles by clicking with the left or right mouse button on the canvas.
+      <label>Show Potential Area<input type="checkbox" checked id="showDebug" /></label>
     </p>
     <canvas id="debug" style="position: absolute;"></canvas>
     <svg
@@ -25,11 +26,15 @@
       const pathA = main.append('path');
       const pathB = main.append('path');
       const canvas = document.getElementById('debug');
+      const checkbox = document.getElementById('showDebug');
+      checkbox.onchange = () => {
+        canvas.style.display = checkbox.checked ? '' : 'none';
+      };
 
       const container = {};
 
       function update() {
-        updateOutline(rectanglesA, rectanglesB, 'crimson', pathA, true);
+        updateOutline(rectanglesA, rectanglesB, 'crimson', pathA, checkbox.checked);
         updateOutline(rectanglesB, rectanglesA, 'cornflowerblue', pathB);
       }
 
