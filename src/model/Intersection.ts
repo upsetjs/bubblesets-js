@@ -41,6 +41,34 @@ export function fractionAlongLineA(la: Line, lb: Line) {
   return Number.POSITIVE_INFINITY;
 }
 
+export function hasFractionToLineCenter(bounds: IRectangle2, line: Line) {
+  function testLine(xa: number, ya: number, xb: number, yb: number) {
+    let testDistance = fractionAlongLineA(line, new Line(xa, ya, xb, yb));
+    testDistance = Math.abs(testDistance - 0.5);
+    if (testDistance >= 0 && testDistance <= 1) {
+      return 1;
+    }
+    return 0;
+  }
+
+  // top
+  let countIntersections = testLine(bounds.x, bounds.y, bounds.x2, bounds.y);
+  // left
+  countIntersections += testLine(bounds.x, bounds.y, bounds.x, bounds.y2);
+  if (countIntersections > 1) {
+    return true;
+  }
+  // bottom
+  countIntersections += testLine(bounds.x, bounds.y2, bounds.x2, bounds.y2);
+  if (countIntersections > 1) {
+    return true;
+  }
+  // right
+  countIntersections += testLine(bounds.x2, bounds.y, bounds.x2, bounds.y2);
+  // if no intersection, return -1
+  return countIntersections > 0;
+}
+
 export function fractionToLineCenter(bounds: IRectangle2, line: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
   let countIntersections = 0;

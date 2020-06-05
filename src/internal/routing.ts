@@ -1,4 +1,10 @@
-import { EState, fractionToLineCenter, Intersection, testIntersection } from '../model/Intersection';
+import {
+  EState,
+  fractionToLineCenter,
+  Intersection,
+  testIntersection,
+  hasFractionToLineCenter,
+} from '../model/Intersection';
 import { Line } from '../model/Line';
 import { Rectangle } from '../model/Rectangle';
 import { doublePointsEqual, ptsDistanceSq } from '../utils';
@@ -31,18 +37,156 @@ function connectItem(
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
+  const itemCenter = point(item.cx, item.cy);
+
+  // discover the nearest neighbor with minimal interference items
+  const closestNeighbor = calculateClosestNeighbor(itemCenter, visited, nonMembers);
+  if (closestNeighbor == null) {
+    return [];
+  }
+  // if there is a visited closest neighbor, add straight line between
+  // them to the positive energy to ensure connected clusters
+  const directLine = new Line(itemCenter.x, itemCenter.y, closestNeighbor.cx, closestNeighbor.cy);
+
+  // route the edge around intersecting nodes not in set
+  const scannedLines = computeRoute(directLine, nonMembers, maxRoutingIterations, morphBuffer);
+
+  return mergeLines(scannedLines, nonMembers);
+}
+
+function computeRoute(
+  directLine: Line,
+  nonMembers: ReadonlyArray<Rectangle>,
+  maxRoutingIterations: number,
+  morphBuffer: number
+) {
+  // route the edge around intersecting nodes not in set
   const scannedLines: Line[] = [];
   const linesToCheck: Line[] = [];
+  linesToCheck.push(directLine);
 
-  let itemCenter = point(item.cx, item.cy);
+  let hasIntersection = true;
+
+  for (let iterations = 0; iterations < maxRoutingIterations && hasIntersection; iterations++) {
+    hasIntersection = false;
+    while (!hasIntersection && linesToCheck.length > 0) {
+      const line = linesToCheck.pop()!;
+      // resolve intersections in order along edge
+      const closestItem = getCenterItem(nonMembers, line);
+      const intersections = closestItem ? testIntersection(line, closestItem) : null;
+
+      // 2 intersections = line passes through item
+      if (!closestItem || !intersections || intersections.count !== 2) {
+        // no intersection found, mark this line as completed
+        if (!hasIntersection) {
+          scannedLines.push(line);
+        }
+        continue;
+      }
+
+      let tempMorphBuffer = morphBuffer;
+      let movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
+      // test the movePoint already exists
+      let foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
+      let pointInside = isPointInRectangles(movePoint, nonMembers);
+      // prefer first corner, even if buffer becomes very small
+      while (!foundFirst && pointInside && tempMorphBuffer >= 1) {
+        // try a smaller buffer
+        tempMorphBuffer /= 1.5;
+        movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
+        foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
+        pointInside = isPointInRectangles(movePoint, nonMembers);
+      }
+
+      if (movePoint && !foundFirst && !pointInside) {
+        // add 2 rerouted lines to check
+        linesToCheck.push(new Line(line.x1, line.y1, movePoint.x, movePoint.y));
+        linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2, line.y2));
+        // indicate intersection found
+        hasIntersection = true;
+      }
+
+      if (hasIntersection) {
+        continue;
+      }
+
+      // if we didn't find a valid point around the
+      // first corner, try the second
+      tempMorphBuffer = morphBuffer;
+      movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
+      let foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
+      pointInside = isPointInRectangles(movePoint, nonMembers);
+      // if both corners have been used, stop; otherwise gradually reduce buffer and try second corner
+      while (!foundSecond && pointInside && tempMorphBuffer >= 1) {
+        // try a smaller buffer
+        tempMorphBuffer /= 1.5;
+        movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
+        foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
+        pointInside = isPointInRectangles(movePoint, nonMembers);
+      }
+
+      if (movePoint && !foundSecond) {
+        // add 2 rerouted lines to check
+        linesToCheck.push(new Line(line.x1, line.y1, movePoint.x, movePoint.y));
+        linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2, line.y2));
+        // indicate intersection found
+        hasIntersection = true;
+      }
+      // no intersection found, mark this line as completed
+      if (!hasIntersection) {
+        scannedLines.push(line);
+      }
+    }
+  }
+  // finalize any that were not rerouted (due to running out of
+  // iterations) or if we aren't morphing
+  while (linesToCheck.length > 0) {
+    scannedLines.push(linesToCheck.pop()!);
+  }
+
+  return scannedLines;
+}
+
+function mergeLines(scannedLines: Line[], nonMembers: ReadonlyArray<Rectangle>) {
+  const finalRoute: Line[] = [];
+  // try to merge consecutive lines if possible
+  while (scannedLines.length > 0) {
+    const line1 = scannedLines.pop()!;
+    if (scannedLines.length === 0) {
+      finalRoute.push(line1);
+      break;
+    }
+    const line2 = scannedLines.pop()!;
+    const mergeLine = new Line(line1.x1, line1.y1, line2.x2, line2.y2);
+    // resolve intersections in order along edge
+    const closestItem = getCenterItem(nonMembers, mergeLine);
+    // merge most recent line and previous line
+    if (!closestItem) {
+      scannedLines.push(mergeLine);
+    } else {
+      finalRoute.push(line1);
+      scannedLines.push(line2);
+    }
+  }
+  return finalRoute;
+}
+
+function calculateClosestNeighbor(
+  itemCenter: IPoint,
+  visited: ReadonlyArray<Rectangle>,
+  nonMembers: ReadonlyArray<Rectangle>
+) {
   let minLengthSq = Number.POSITIVE_INFINITY;
-  // discover the nearest neighbor with minimal interference items
-  const closestNeighbor = visited.reduce((closestNeighbor, neighborItem) => {
+  return visited.reduce((closestNeighbor, neighborItem) => {
     const distanceSq = ptsDistanceSq(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
+    if (distanceSq > minLengthSq) {
+      // the interference can only increase the distance so if already bigger, return
+      return closestNeighbor;
+    }
 
-    const completeLine = new Line(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
+    const directLine = new Line(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
     // augment distance by number of interfering items
-    const numberInterferenceItems = countInterferenceItems(nonMembers, completeLine);
+    const numberInterferenceItems = itemsCuttingLine(nonMembers, directLine);
 
     // TODO is there a better function to consider interference in nearest-neighbor checking? This is hacky
     if (distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1) < minLengthSq) {
@@ -50,113 +194,7 @@ function connectItem(
       minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
     }
     return closestNeighbor;
-  }, null as Rectangle | null)!;
-
-  // if there is a visited closest neighbor, add straight line between
-  // them to the positive energy to ensure connected clusters
-  if (closestNeighbor == null) {
-    return [];
-  }
-  const completeLine = new Line(itemCenter.x, itemCenter.y, closestNeighbor.cx, closestNeighbor.cy);
-  // route the edge around intersecting nodes not in set
-  linesToCheck.push(completeLine);
-
-  let hasIntersection = true;
-  let iterations = 0;
-
-  while (hasIntersection && iterations < maxRoutingIterations) {
-    hasIntersection = false;
-    while (!hasIntersection && linesToCheck.length > 0) {
-      var line = linesToCheck.pop()!;
-      // resolve intersections in order along edge
-      var closestItem = getCenterItem(nonMembers, line);
-      if (closestItem) {
-        const intersections = testIntersection(line, closestItem);
-        // 2 intersections = line passes through item
-        if (intersections.count == 2) {
-          var tempMorphBuffer = morphBuffer;
-          var movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
-          // test the movePoint already exists
-          var foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-          var pointInside = isPointInRectangles(movePoint, nonMembers);
-          // prefer first corner, even if buffer becomes very small
-          while (!foundFirst && pointInside && tempMorphBuffer >= 1) {
-            // try a smaller buffer
-            tempMorphBuffer /= 1.5;
-            movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, true);
-            foundFirst = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-            pointInside = isPointInRectangles(movePoint, nonMembers);
-          }
-
-          if (movePoint && !foundFirst && !pointInside) {
-            // add 2 rerouted lines to check
-            linesToCheck.push(new Line(line.x1, line.y1, movePoint.x, movePoint.y));
-            linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2, line.y2));
-            // indicate intersection found
-            hasIntersection = true;
-          }
-
-          // if we didn't find a valid point around the
-          // first corner, try the second
-          if (!hasIntersection) {
-            tempMorphBuffer = morphBuffer;
-            movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
-            var foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-            pointInside = isPointInRectangles(movePoint, nonMembers);
-            // if both corners have been used, stop; otherwise gradually reduce buffer and try second corner
-            while (!foundSecond && pointInside && tempMorphBuffer >= 1) {
-              // try a smaller buffer
-              tempMorphBuffer /= 1.5;
-              movePoint = rerouteLine(closestItem, tempMorphBuffer, intersections, false);
-              foundSecond = pointExists(movePoint, linesToCheck) || pointExists(movePoint, scannedLines);
-              pointInside = isPointInRectangles(movePoint, nonMembers);
-            }
-
-            if (movePoint && !foundSecond) {
-              // add 2 rerouted lines to check
-              linesToCheck.push(new Line(line.x1, line.y1, movePoint.x, movePoint.y));
-              linesToCheck.push(new Line(movePoint.x, movePoint.y, line.x2, line.y2));
-              // indicate intersection found
-              hasIntersection = true;
-            }
-          }
-        }
-      } // end check of closest item
-
-      // no intersection found, mark this line as completed
-      if (!hasIntersection) {
-        scannedLines.push(line);
-      }
-      iterations++;
-    } // end inner loop - out of lines or found an intersection
-  } // end outer loop - no more intersections or out of iterations
-
-  // finalize any that were not rerouted (due to running out of
-  // iterations) or if we aren't morphing
-  while (linesToCheck.length > 0) {
-    scannedLines.push(linesToCheck.pop()!);
-  }
-
-  // try to merge consecutive lines if possible
-  while (scannedLines.length > 0) {
-    const line1 = scannedLines.pop()!;
-    if (scannedLines.length > 0) {
-      const line2 = scannedLines.pop()!;
-      const mergeLine = new Line(line1.x1, line1.y1, line2.x2, line2.y2);
-      // resolve intersections in order along edge
-      const closestItem = getCenterItem(nonMembers, mergeLine);
-      // merge most recent line and previous line
-      if (!closestItem) {
-        scannedLines.push(mergeLine);
-      } else {
-        linesToCheck.push(line1);
-        scannedLines.push(line2);
-      }
-    } else {
-      linesToCheck.push(line1);
-    }
-  }
-  return linesToCheck;
+  }, null as Rectangle | null);
 }
 
 function sortByDistanceToCentroid<T extends ICircle>(items: ReadonlyArray<T>) {
@@ -199,25 +237,24 @@ function getCenterItem(items: ReadonlyArray<Rectangle>, testLine: Line) {
   let minDistance = Number.POSITIVE_INFINITY;
   let closestItem: Rectangle | null = null;
 
-  items.forEach((item) => {
-    if (item.intersectsLine(testLine)) {
-      const distance = fractionToLineCenter(item, testLine);
-      // find closest intersection
-      if (distance >= 0 && distance < minDistance) {
-        closestItem = item;
-        minDistance = distance;
-      }
+  for (const item of items) {
+    if (!item.intersectsLine(testLine)) {
+      continue;
     }
-  });
+    const distance = fractionToLineCenter(item, testLine);
+    // find closest intersection
+    if (distance >= 0 && distance < minDistance) {
+      closestItem = item;
+      minDistance = distance;
+    }
+  }
   return closestItem;
 }
 
-function countInterferenceItems(interferenceItems: ReadonlyArray<Rectangle>, testLine: Line) {
-  return interferenceItems.reduce((count, item) => {
-    if (item.intersectsLine(testLine)) {
-      if (fractionToLineCenter(item, testLine) >= 0) {
-        return count + 1;
-      }
+function itemsCuttingLine(items: ReadonlyArray<Rectangle>, testLine: Line) {
+  return items.reduce((count, item) => {
+    if (item.intersectsLine(testLine) && hasFractionToLineCenter(item, testLine)) {
+      return count + 1;
     }
     return count;
   }, 0);
