@@ -16,10 +16,10 @@
     "type": "git",
     "url": "https://github.com/sgratzl/bubblesets-js.git"
   },
-  "module": "dist/bubblesets-js.esm.js",
-  "main": "dist/bubblesets-js.umd.development.js",
-  "jsdelivr": "dist/bubblesets-js.umd.production.min.js",
-  "unpkg": "dist/bubblesets-js.umd.production.min.js",
+  "module": "dist/bubblesets.esm.js",
+  "main": "dist/bubblesets.umd.development.js",
+  "jsdelivr": "dist/bubblesets.umd.production.min.js",
+  "unpkg": "dist/bubblesets.umd.production.min.js",
   "types": "dist/index.d.ts",
   "sideEffects": false,
   "files": [
@@ -75,7 +75,7 @@
     "eslint": "tsdx lint src --ext .ts,.tsx",
     "eslint:fix": "npm run eslint -- --fix",
     "docs": "typedoc",
-    "prepare": "tsdx build",
+    "prepare": "npm run build",
     "release": "release-it --disable-metrics --npm.skipChecks",
     "release:pre": "release-it --disable-metrics --npm.skipChecks --preRelease=alpha --npm.tag=next"
   },
