@@ -6,7 +6,12 @@ import { marchingSquares } from './model/MarchingSquares';
 import { Rectangle, boundingBox } from './model/Rectangle';
 import { PointPath } from './PointPath';
 import { addPadding } from './padding';
-import { createRectangleInfluenceArea, createLineInfluenceArea } from './internal/potentialAreas';
+import {
+  createRectangleInfluenceArea,
+  createLineInfluenceArea,
+  createGenericInfluenceArea,
+} from './internal/potentialAreas';
+import { Circle } from './model';
 
 export interface IOutlineOptions {
   maxRoutingIterations?: number;
@@ -35,8 +40,12 @@ const defaultOptions: Required<IOutlineOptions> = {
   debugContainer: {},
 };
 
+function isCircle(v: IRectangle | ICircle): v is ICircle {
+  return v != null && typeof (v as ICircle).radius === 'number';
+}
+
 export function createOutline(
-  members: ReadonlyArray<IRectangle>,
+  members: ReadonlyArray<IRectangle | ICircle>,
   nonMembers: ReadonlyArray<IRectangle> = [],
   edges: ReadonlyArray<ILine> = [],
   options: IOutlineOptions = {}
@@ -47,7 +56,7 @@ export function createOutline(
     return new PointPath([]);
   }
 
-  const memberItems = members.map(Rectangle.from);
+  const memberItems: (Rectangle | Circle)[] = members.map((v) => (isCircle(v) ? Circle.from(v) : Rectangle.from(v)));
   const nonMemberItems = nonMembers.map(Rectangle.from);
 
   // calculate and store virtual edges
@@ -61,13 +70,16 @@ export function createOutline(
   const potentialArea = Area.fromPixelRegion(activeRegion, o.pixelGroup);
 
   const cache = new Map<string, Area>();
-  const createArea = (rect: Rectangle) => {
-    const key = `${rect.width}x${rect.height}`;
+  const createArea = (rect: Rectangle | Circle) => {
+    const key = `${rect.width}x${rect.height}x${rect instanceof Rectangle ? 'R' : 'C'}`;
     if (cache.has(key)) {
       const r = cache.get(key)!;
-      return potentialArea.copy(r, addPadding(rect, o.nodeR1));
+      return potentialArea.copy(r, { x: rect.x - o.nodeR1, y: rect.y - o.nodeR1 });
     }
-    const r = createRectangleInfluenceArea(rect, potentialArea, o.nodeR1);
+    const r =
+      rect instanceof Rectangle
+        ? createRectangleInfluenceArea(rect, potentialArea, o.nodeR1)
+        : createGenericInfluenceArea(rect, potentialArea, o.nodeR1);
     cache.set(key, r);
     return r;
   };

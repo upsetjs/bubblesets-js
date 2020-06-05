@@ -35,7 +35,7 @@ export class Line {
     return px <= cross;
   }
 
-  ptSegDistSq(x: number, y: number) {
+  distSquare(x: number, y: number) {
     return linePtSegDistSq(this.x1, this.y1, this.x2, this.y2, x, y);
   }
 

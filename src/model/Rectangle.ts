@@ -133,7 +133,7 @@ export class Rectangle implements IRectangle2, ICircle {
   static readonly OUT_RIGHT = 4;
   static readonly OUT_BOTTOM = 8;
 
-  rectDistSq(tempX: number, tempY: number) {
+  distSq(tempX: number, tempY: number) {
     // test current point to see if it is inside rectangle
     if (this.containsPt(tempX, tempY)) {
       return 0;

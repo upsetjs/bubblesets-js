@@ -11,12 +11,12 @@ import { doublePointsEqual, ptsDistanceSq } from '../utils';
 import { IPoint, point, ICircle, IRectangle2 } from '../interfaces';
 
 export function calculateVirtualEdges(
-  items: ReadonlyArray<Rectangle>,
+  items: ReadonlyArray<ICircle>,
   nonMembers: ReadonlyArray<Rectangle>,
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
-  const visited: Rectangle[] = [];
+  const visited: ICircle[] = [];
   const virtualEdges: Line[] = [];
   const sorted = sortByDistanceToCentroid(items);
 
@@ -32,8 +32,8 @@ export function calculateVirtualEdges(
 
 function connectItem(
   nonMembers: ReadonlyArray<Rectangle>,
-  item: Rectangle,
-  visited: Rectangle[],
+  item: ICircle,
+  visited: ICircle[],
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
@@ -173,7 +173,7 @@ function mergeLines(scannedLines: Line[], nonMembers: ReadonlyArray<Rectangle>) 
 
 function calculateClosestNeighbor(
   itemCenter: IPoint,
-  visited: ReadonlyArray<Rectangle>,
+  visited: ReadonlyArray<ICircle>,
   nonMembers: ReadonlyArray<Rectangle>
 ) {
   let minLengthSq = Number.POSITIVE_INFINITY;
@@ -194,7 +194,7 @@ function calculateClosestNeighbor(
       minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
     }
     return closestNeighbor;
-  }, null as Rectangle | null);
+  }, null as ICircle | null);
 }
 
 function sortByDistanceToCentroid<T extends ICircle>(items: ReadonlyArray<T>) {

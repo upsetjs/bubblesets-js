@@ -35,4 +35,14 @@ export class Circle implements IRectangle2, ICircle {
   containsPt(x: number, y: number) {
     return ptsDistanceSq(this.cx, this.cy, x, y) < this.radius ** this.radius;
   }
+
+  distSquare(tempX: number, tempY: number) {
+    const dist = ptsDistanceSq(this.cx, this.cy, tempX, tempY);
+    if (dist < this.radius * this.radius) {
+      // inside
+      return 0;
+    }
+    const offset = Math.sqrt(dist) - this.radius;
+    return offset * offset;
+  }
 }
