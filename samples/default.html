@@ -29,11 +29,11 @@
       const container = {};
 
       function update() {
-        updateOutline(rectanglesA, rectanglesB, 'crimson', pathA);
+        updateOutline(rectanglesA, rectanglesB, 'crimson', pathA, true);
         updateOutline(rectanglesB, rectanglesA, 'cornflowerblue', pathB);
       }
 
-      function updateOutline(rectangles, otherRectangles, color, path) {
+      function updateOutline(rectangles, otherRectangles, color, path, drawPotential = false) {
         const pointPath = BubbleSets.createOutline(rectangles, otherRectangles, [], {
           debugContainer: container,
         });
@@ -41,10 +41,12 @@
         path.attr('d', outline);
         path.style('opacity', 0.5).style('fill', color).style('stroke', 'black');
 
-        const bb = main.node().getBoundingClientRect();
-        canvas.width = bb.width;
-        canvas.height = bb.height;
-        container.potentialArea.draw(canvas.getContext('2d'), true);
+        if (drawPotential) {
+          const bb = main.node().getBoundingClientRect();
+          canvas.width = bb.width;
+          canvas.height = bb.height;
+          container.potentialArea.draw(canvas.getContext('2d'), true);
+        }
       }
 
       function addRect(rectangles, color, cx, cy) {
