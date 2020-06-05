@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>BubbleSets - Sample</title>
+    <meta charset="utf-8" />
+    <script src="../dist/bubblesets.umd.development.js"></script>
+  </head>
+  <body>
+    <script>
+      const bubbleSets = new BubbleSets.BubbleSets();
+      bubbleSets.pushMember(BubbleSets.rect(30, 30, 50, 20));
+      bubbleSets.pushMember(BubbleSets.rect(200, 100, 50, 20));
+      bubbleSets.pushMember(BubbleSets.circle(240, 40, 10));
+
+      const pointPath = bubbleSets.compute();
+      const cleanPath = pointPath.simplify(0).bSplines().simplify(0);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 200;
+      document.body.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+
+      // svg path
+      //const path = document.createElement('path');
+      //path.setAttribute('d', cleanPath.toString());
+
+      // canvas
+      ctx.beginPath();
+      cleanPath.draw(ctx);
+      ctx.strokeStyle = 'black';
+      ctx.fillStyle = 'rgba(0,0,255,0.2)';
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      bubbleSets.drawMembers(ctx);
+      ctx.fillStyle = 'steelblue';
+      ctx.fill();
+    </script>
+  </body>
+</html>
