@@ -28,9 +28,9 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
     dir = updateDir(x, y + 1, dir, 4);
     dir = updateDir(x + 1, y + 1, dir, 8);
     if (Number.isNaN(dir)) {
-      console.warn(
-        'marched out of bounds: ' + x + ' ' + y + ' bounds: ' + potentialArea.width + ' ' + potentialArea.height
-      );
+      // console.warn(
+      //   'marched out of bounds: ' + x + ' ' + y + ' bounds: ' + potentialArea.width + ' ' + potentialArea.height
+      // );
       return -1;
     }
     return dir;
@@ -122,10 +122,15 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
 
   for (let x = 0; x < potentialArea.width; x++) {
     for (let y = 0; y < potentialArea.height; y++) {
-      if (potentialArea.get(x, y) > threshold && getState(x, y) != 15) {
-        if (doMarch(x, y)) {
-          return contour.path();
-        }
+      if (potentialArea.get(x, y) <= threshold) {
+        continue;
+      }
+      const state = getState(x, y);
+      if (state < 0 || state === 15) {
+        continue;
+      }
+      if (doMarch(x, y)) {
+        return contour.path();
       }
     }
   }
