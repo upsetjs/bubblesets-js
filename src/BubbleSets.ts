@@ -325,13 +325,14 @@ export class BubbleSets {
     const members = this.members.map((m) => m.area!);
     const edges = this.virtualEdges.concat(this.edges).map((d) => d.area!);
     const nonMembers = this.nonMembers.filter((d) => d.area != null).map((d) => d.area!);
+    const memberObjs = this.members.map((m) => m.obj);
 
     return calculatePotentialOutline(
       potentialArea,
       members,
       edges,
       nonMembers,
-      (p) => p.containsElements(this.members.map((m) => m.obj)),
+      (p) => p.containsElements(memberObjs),
       o
     );
   }
