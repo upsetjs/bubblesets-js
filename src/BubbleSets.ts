@@ -47,7 +47,7 @@ export interface IOutlineOptions {
 
 export interface IBubbleSetOptions extends IRoutingOptions, IOutlineOptions, IPotentialOptions {}
 
-const defaultOptions: Required<IBubbleSetOptions> = {
+export const defaultOptions: Readonly<Required<IBubbleSetOptions>> = {
   maxRoutingIterations: 100,
   maxMarchingIterations: 20,
   pixelGroup: 4,
@@ -343,8 +343,9 @@ export function calculatePotentialOutline(
   edges: ReadonlyArray<Area>,
   nonMembers: ReadonlyArray<Area>,
   validPath: (path: PointPath) => boolean,
-  o: Required<IOutlineOptions>
+  options: IOutlineOptions = {}
 ) {
+  const o = Object.assign({}, defaultOptions, options);
   let threshold = o.threshold;
   let memberInfluenceFactor = o.memberInfluenceFactor;
   let edgeInfluenceFactor = o.edgeInfluenceFactor;

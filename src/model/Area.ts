@@ -83,10 +83,10 @@ export class Area {
   }
 
   invertScaleX(v: number) {
-    return v * this.pixelGroup + this.pixelX;
+    return Math.round(v * this.pixelGroup + this.pixelX);
   }
   invertScaleY(v: number) {
-    return v * this.pixelGroup + this.pixelY;
+    return Math.round(v * this.pixelGroup + this.pixelY);
   }
 
   addPadding(rect: Rectangle, pixelPadding: number) {

@@ -19,24 +19,20 @@ export function calculateVirtualEdges(
   if (items.length === 0) {
     return [];
   }
-  const visited: ICircle[] = [];
-  const virtualEdges: Line[] = [];
   const sorted = sortByDistanceToCentroid(items);
 
-  for (const item of sorted) {
-    const lines = connectItem(nonMembers, item, visited, maxRoutingIterations, morphBuffer);
-    for (const l of lines) {
-      virtualEdges.push(l);
-    }
-    visited.push(item);
-  }
-  return virtualEdges;
+  return sorted
+    .map((d, i) => {
+      const visited = sorted.slice(0, i);
+      return connectItem(nonMembers, d, visited, maxRoutingIterations, morphBuffer);
+    })
+    .flat();
 }
 
 function connectItem(
   nonMembers: ReadonlyArray<IRectangle2 & { containsPt(x: number, y: number): boolean }>,
   item: ICircle,
-  visited: ICircle[],
+  visited: ReadonlyArray<ICircle>,
   maxRoutingIterations: number,
   morphBuffer: number
 ) {
@@ -201,6 +197,9 @@ function calculateClosestNeighbor(
 }
 
 function sortByDistanceToCentroid<T extends ICircle>(items: ReadonlyArray<T>) {
+  if (items.length < 2) {
+    return items;
+  }
   let totalX = 0;
   let totalY = 0;
   items.forEach((item) => {

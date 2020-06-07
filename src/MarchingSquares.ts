@@ -43,7 +43,8 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
     let y = yPos;
     let xPixel = potentialArea.invertScaleX(x);
     let yPixel = potentialArea.invertScaleY(y);
-    for (;;) {
+    // artificial limit
+    for (let i = 0; i < potentialArea.width * potentialArea.height; i++) {
       // iterative version of end recursion
       const p = { x: xPixel, y: yPixel };
       // check if we're back where we started
@@ -116,6 +117,7 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
           return true;
       }
     }
+    return true;
   }
 
   for (let x = 0; x < potentialArea.width; x++) {
