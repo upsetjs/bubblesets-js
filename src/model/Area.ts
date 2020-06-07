@@ -121,23 +121,31 @@ export class Area {
     this.area[i + j * this.width] = v;
   }
 
-  incArea(area: Area, factor: number) {
-    if (area.width <= 0 || area.height <= 0 || factor === 0) {
+  incArea(sub: Area, factor: number) {
+    if (sub.width <= 0 || sub.height <= 0 || factor === 0) {
       return;
     }
     // assume it is within the bounds
     const w = this.width;
-    const aw = area.width;
-    const base = area.i + area.j * w;
-    for (let j = 0; j < area.height; j++) {
-      const sRow = base + j * w;
-      const tRow = j * aw;
-      for (let i = 0; i < area.width; i++) {
-        const v = area.area[i + tRow];
+    const aw = sub.width;
+    const i1 = Math.max(0, sub.i);
+    const j1 = Math.max(0, sub.j);
+    const i2 = Math.min(sub.i + sub.width, w);
+    const j2 = Math.min(sub.j + sub.height, this.height);
+
+    if (j2 <= 0 || i2 <= 0 || i1 >= w || j2 >= this.height) {
+      return;
+    }
+
+    for (let j = j1; j < j2; j++) {
+      const subRow = (j - sub.j) * aw;
+      const row = j * w;
+      for (let i = i1; i < i2; i++) {
+        const v = sub.area[i - sub.i + subRow];
         if (v === 0) {
           continue;
         }
-        this.area[i + sRow] += factor * v;
+        this.area[i + row] += factor * v;
       }
     }
   }
