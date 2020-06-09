@@ -39,6 +39,10 @@ function sample(area: Area, potentialArea: Area, padding: number, distanceFuncti
       const tempX = potentialArea.invertScaleX(area.i + x);
       const tempY = potentialArea.invertScaleY(area.j + y);
       const distanceSq = distanceFunction(tempX, tempY);
+      if (distanceSq === 0) {
+        area.set(x, y, padding2);
+        continue;
+      }
       // only influence if less than r1
       if (distanceSq < padding2) {
         const dr = padding - Math.sqrt(distanceSq);
