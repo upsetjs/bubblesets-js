@@ -5,6 +5,8 @@
 Fork of http://github.com/josuakrause/bubblesets-js/ - a JavaScript implementation of Christopher Collins' [bubble sets](http://vialab.science.uoit.ca/portfolio/bubblesets) without the use of external libraries.
 A Java implementation can be found [here](https://github.com/JosuaKrause/Bubble-Sets).
 
+A [Cytoscape](https://js.cytoscape.org/#extensions/ui-extensions) plugin is located at [Cytoscape.js-Bubblesets](https://github.com/sgratzl/cytoscape.js-bubblesets).
+
 ![bubblesets](https://user-images.githubusercontent.com/4129778/83879077-60607800-a73d-11ea-9d1d-4f76752280ee.png)
 
 ## Install

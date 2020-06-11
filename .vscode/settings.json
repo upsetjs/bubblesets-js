@@ -1,4 +1,5 @@
 {
+  "eslint.enable": true,
   "editor.formatOnSave": true,
   "editor.formatOnType": true,
   "[javascript]": {
@@ -7,12 +8,21 @@
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
   "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[yaml]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "eslint.nodePath": ".vscode/pnpify",
   "prettier.prettierPath": ".vscode/pnpify/prettier/index.js",
   "files.eol": "\n",
+  "editor.detectIndentation": false,
+  "editor.tabSize": 2,
   "typescript.tsdk": ".vscode/pnpify/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "npm.packageManager": "yarn"
 }
