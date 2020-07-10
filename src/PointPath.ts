@@ -1,6 +1,7 @@
 import { shapeSimplifier, bSplineShapeGenerator, samplePath } from './simplifiers';
 import { Line, boundingBox } from './model';
 import { IPoint, ICenterPoint } from './interfaces';
+import { round } from './utils';
 
 export class PointPath {
   readonly points: ReadonlyArray<IPoint>;
@@ -26,14 +27,15 @@ export class PointPath {
     return this.points.length;
   }
 
-  toString() {
+  toString(roundToDigits: number | ((v: number) => number) = Infinity) {
     const points = this.points;
     if (points.length === 0) {
       return '';
     }
+    const rounder = typeof roundToDigits === 'function' ? roundToDigits : round(roundToDigits);
     let r = 'M';
     for (const p of points) {
-      r += `${p.x},${p.y} L`;
+      r += `${rounder(p.x)},${rounder(p.y)} L`;
     }
     r = r.slice(0, -1);
     if (this.closed) {

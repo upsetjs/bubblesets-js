@@ -36,3 +36,14 @@ export function ptsDistanceSq(x1: number, y1: number, x2: number, y2: number) {
 export function doublePointsEqual(x1: number, y1: number, x2: number, y2: number, delta: number) {
   return ptsDistanceSq(x1, y1, x2, y2) < delta * delta;
 }
+
+export function round(digits: number) {
+  if (!Number.isFinite(digits)) {
+    return (v: number) => v;
+  }
+  if (digits === 0) {
+    return Math.round;
+  }
+  const factor = Math.pow(10, digits);
+  return (v: number) => Math.round(v * factor) / factor;
+}
