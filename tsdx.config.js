@@ -29,7 +29,7 @@ module.exports = {
     );
     config.output.banner = `/**
  * bubblesets-js
- * https://github.com/sgratzl/bubblesets-js
+ * https://github.com/upsetjs/bubblesets-js
  *
  * Copyright (c) 2020 Samuel Gratzl <sam@sgratzl.com>
  */`;

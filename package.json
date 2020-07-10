@@ -8,13 +8,13 @@
     "url": "https://www.sgratzl.com"
   },
   "license": "MIT",
-  "homepage": "https://github.com/sgratzl/bubblesets-js",
+  "homepage": "https://github.com/upsetjs/bubblesets-js",
   "bugs": {
-    "url": "https://github.com/sgratzl/bubblesets-js/issues"
+    "url": "https://github.com/upsetjs/bubblesets-js/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sgratzl/bubblesets-js.git"
+    "url": "https://github.com/upsetjs/bubblesets-js.git"
   },
   "module": "dist/bubblesets.esm.js",
   "main": "dist/bubblesets.umd.development.js",

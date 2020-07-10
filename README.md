@@ -5,7 +5,7 @@
 Fork of http://github.com/josuakrause/bubblesets-js/ - a JavaScript implementation of Christopher Collins' [bubble sets](http://vialab.science.uoit.ca/portfolio/bubblesets) without the use of external libraries.
 A Java implementation can be found [here](https://github.com/JosuaKrause/Bubble-Sets).
 
-A [Cytoscape](https://js.cytoscape.org/#extensions/ui-extensions) plugin is located at [Cytoscape.js-Bubblesets](https://github.com/sgratzl/cytoscape.js-bubblesets).
+A [Cytoscape](https://js.cytoscape.org/#extensions/ui-extensions) plugin is located at [Cytoscape.js-Bubblesets](https://github.com/upsetjs/cytoscape.js-bubblesets).
 
 ![bubblesets](https://user-images.githubusercontent.com/4129778/83879077-60607800-a73d-11ea-9d1d-4f76752280ee.png)
 
@@ -52,7 +52,7 @@ ctx.fill();
 
 ![sample](https://user-images.githubusercontent.com/4129778/83879033-52aaf280-a73d-11ea-9a19-d803718fec17.png)
 
-see [Samples](https://github.com/sgratzl/bubblesets-js/tree/master/samples) on Github
+see [Samples](https://github.com/upsetjs/bubblesets-js/tree/master/samples) on Github
 
 or at this [![Open in CodePen][codepen]](https://codepen.io/sgratzl/pen/MWKYRWo)
 
@@ -81,6 +81,6 @@ yarn release:pre
 
 [npm-image]: https://badge.fury.io/js/bubblesets-js.svg
 [npm-url]: https://npmjs.org/package/bubblesets-js
-[github-actions-image]: https://github.com/sgratzl/bubblesets-js/workflows/ci/badge.svg
-[github-actions-url]: https://github.com/sgratzl/bubblesets-js/actions
+[github-actions-image]: https://github.com/upsetjs/bubblesets-js/workflows/ci/badge.svg
+[github-actions-url]: https://github.com/upsetjs/bubblesets-js/actions
 [codepen]: https://img.shields.io/badge/CodePen-open-blue?logo=codepen
