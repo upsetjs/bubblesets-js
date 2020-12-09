@@ -75,7 +75,7 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
           direction = W;
           break;
         case 6:
-          direction = direction == N ? W : E;
+          direction = direction === N ? W : E;
           break;
         case 1:
         case 13:
@@ -83,7 +83,7 @@ export function marchingSquares(potentialArea: Area, threshold: number) {
           direction = N;
           break;
         case 9:
-          direction = direction == E ? N : S;
+          direction = direction === E ? N : S;
           break;
         case 10:
         case 8:

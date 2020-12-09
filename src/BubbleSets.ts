@@ -402,7 +402,7 @@ export function calculatePotentialOutline(
     if (iterations <= o.maxMarchingIterations * 0.5) {
       memberInfluenceFactor *= 1.2;
       edgeInfluenceFactor *= 1.2;
-    } else if (nonMemberInfluenceFactor != 0 && nonMembers.length > 0) {
+    } else if (nonMemberInfluenceFactor !== 0 && nonMembers.length > 0) {
       // after half the iterations, start increasing positive energy and lowering the threshold
       nonMemberInfluenceFactor *= 0.8;
     } else {

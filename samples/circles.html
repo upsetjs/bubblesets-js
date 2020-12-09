@@ -4,7 +4,7 @@
     <title>BubbleSets - Playground</title>
     <meta charset="utf-8" />
     <script src="https://unpkg.com/d3"></script>
-    <script src="../dist/bubblesets.umd.development.js"></script>
+    <script src="../build/index.umd.js"></script>
   </head>
   <body>
     <h3>BubbleSets for JavaScript</h3>
@@ -12,10 +12,10 @@
       Add rectangles by clicking with the left or right mouse button on the canvas.
       <label>Show Potential Area<input type="checkbox" checked id="showDebug" /></label>
     </p>
-    <canvas id="debug" style="position: absolute;"></canvas>
+    <canvas id="debug" style="position: absolute"></canvas>
     <svg
       id="main"
-      style="position: absolute; width: 90vw; height: 80vh; margin: 0 auto; border: 1px solid black; z-index: 1;"
+      style="position: absolute; width: 90vw; height: 80vh; margin: 0 auto; border: 1px solid black; z-index: 1"
     ></svg>
 
     <script>
@@ -71,17 +71,17 @@
         update();
       }
 
-      main.on('click', () => {
-        addRect(rectanglesA, 'cornflowerblue', d3.event.offsetX, d3.event.offsetY);
+      main.on('click', (evt) => {
+        addRect(rectanglesA, 'cornflowerblue', evt.offsetX, evt.offsetY);
       });
       let oldX = Number.NaN;
       let oldY = Number.NaN;
-      main.on('contextmenu', () => {
-        if (oldX === d3.event.offsetX && oldY === d3.event.offsetY) return;
-        oldX = d3.event.offsetX;
-        oldY = d3.event.offsetY;
-        addCircle(rectanglesA, 'crimson', d3.event.offsetX, d3.event.offsetY);
-        d3.event.preventDefault();
+      main.on('contextmenu', (evt) => {
+        evt.preventDefault();
+        if (oldX === evt.offsetX && oldY === evt.offsetY) return;
+        oldX = evt.offsetX;
+        oldY = evt.offsetY;
+        addCircle(rectanglesA, 'crimson', evt.offsetX, evt.offsetY);
       });
     </script>
   </body>
