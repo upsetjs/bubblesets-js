@@ -1,5 +1,5 @@
 import { PointPath } from '../PointPath';
-import { IPoint } from '../interfaces';
+import type { IPoint } from '../interfaces';
 
 function basicFunction(i: number, t: number) {
   // the basis function for a cubic B spline

@@ -1,4 +1,4 @@
-import { ICircle, ILine, IRectangle } from './interfaces';
+import type { ICircle, ILine, IRectangle } from './interfaces';
 import { createGenericInfluenceArea, createLineInfluenceArea, createRectangleInfluenceArea } from './potentialAreas';
 import { calculateVirtualEdges } from './routing';
 import { Circle } from './model';
@@ -101,13 +101,19 @@ interface IEdge {
 
 export class BubbleSets {
   private readonly dirty = new Set<EDirty>();
+
   private readonly o: Required<IBubbleSetOptions>;
+
   private readonly members: IMember[] = [];
+
   private readonly nonMembers: IMember[] = [];
+
   private virtualEdges: IEdge[] = [];
+
   private readonly edges: IEdge[] = [];
 
   private activeRegion = new Rectangle(0, 0, 0, 0);
+
   private potentialArea = new Area(1, 0, 0, 0, 0, 0, 0);
 
   constructor(options: IBubbleSetOptions = {}) {
@@ -297,16 +303,19 @@ export class BubbleSets {
       member.obj.draw(ctx);
     }
   }
+
   drawNonMembers(ctx: CanvasRenderingContext2D) {
     for (const member of this.nonMembers) {
       member.obj.draw(ctx);
     }
   }
+
   drawEdges(ctx: CanvasRenderingContext2D) {
     for (const edge of this.edges) {
       edge.obj.draw(ctx);
     }
   }
+
   drawPotentialArea(ctx: CanvasRenderingContext2D, offset = true) {
     this.potentialArea.draw(ctx, offset);
   }

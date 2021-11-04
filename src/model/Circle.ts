@@ -1,4 +1,4 @@
-import { ICircle, IRectangle2 } from '../interfaces';
+import type { ICircle, IRectangle2 } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
 
 export class Circle implements IRectangle2, ICircle {

@@ -1,10 +1,11 @@
 import { shapeSimplifier, bSplineShapeGenerator, samplePath } from './simplifiers';
 import { Line, boundingBox } from './model';
-import { IPoint, ICenterPoint } from './interfaces';
+import type { IPoint, ICenterPoint } from './interfaces';
 import { round } from './utils';
 
 export class PointPath {
   readonly points: ReadonlyArray<IPoint>;
+
   readonly closed: boolean;
 
   constructor(points: ReadonlyArray<IPoint> = [], closed = true) {

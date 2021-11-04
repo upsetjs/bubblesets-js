@@ -1,5 +1,5 @@
 import { Line } from './model/Line';
-import { IRectangle2, ILine, IRectangle } from './interfaces';
+import type { IRectangle2, ILine, IRectangle } from './interfaces';
 
 export enum EState {
   POINT = 1,
@@ -69,31 +69,31 @@ export function hasFractionToLineCenter(bounds: IRectangle2, line: ILine) {
   return countIntersections > 0;
 }
 
-export enum OUT_CODE {
+export enum OutCode {
   LEFT,
   TOP,
   RIGHT,
   BOTTOM,
 }
 
-export function outcode(bounds: IRectangle, px: number, py: number): Set<OUT_CODE> {
+export function outcode(bounds: IRectangle, px: number, py: number): Set<OutCode> {
   // taken from JDK 8 java.awt.geom.Rectangle2D.Double#outcode(double, double)
-  const out = new Set<OUT_CODE>();
+  const out = new Set<OutCode>();
   if (bounds.width <= 0) {
-    out.add(OUT_CODE.LEFT);
-    out.add(OUT_CODE.RIGHT);
+    out.add(OutCode.LEFT);
+    out.add(OutCode.RIGHT);
   } else if (px < bounds.x) {
-    out.add(OUT_CODE.LEFT);
+    out.add(OutCode.LEFT);
   } else if (px > bounds.x + bounds.width) {
-    out.add(OUT_CODE.RIGHT);
+    out.add(OutCode.RIGHT);
   }
   if (bounds.height <= 0) {
-    out.add(OUT_CODE.TOP);
-    out.add(OUT_CODE.BOTTOM);
+    out.add(OutCode.TOP);
+    out.add(OutCode.BOTTOM);
   } else if (py < bounds.y) {
-    out.add(OUT_CODE.TOP);
+    out.add(OutCode.TOP);
   } else if (py > bounds.y + bounds.height) {
-    out.add(OUT_CODE.BOTTOM);
+    out.add(OutCode.BOTTOM);
   }
   return out;
 }
@@ -115,16 +115,16 @@ export function intersectsLine(bounds: IRectangle, line: ILine) {
         return false;
       }
     }
-    if (out1.has(OUT_CODE.RIGHT) || out1.has(OUT_CODE.LEFT)) {
+    if (out1.has(OutCode.RIGHT) || out1.has(OutCode.LEFT)) {
       let x = bounds.x;
-      if (out1.has(OUT_CODE.RIGHT)) {
+      if (out1.has(OutCode.RIGHT)) {
         x += bounds.width;
       }
       y1 = y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
       x1 = x;
     } else {
       let y = bounds.y;
-      if (out1.has(OUT_CODE.BOTTOM)) {
+      if (out1.has(OutCode.BOTTOM)) {
         y += bounds.height;
       }
       x1 = x1 + ((y - y1) * (x2 - x1)) / (y2 - y1);

@@ -1,7 +1,7 @@
 import { lineBoundingBox } from './model';
-import { Area } from './model/Area';
+import type { Area } from './model/Area';
 import { addPadding } from './padding';
-import { IRectangle, ILine } from './interfaces';
+import type { IRectangle, ILine } from './interfaces';
 import { linePtSegDistSq } from './utils';
 
 export function createLineInfluenceArea(line: ILine, potentialArea: Area, padding: number) {
@@ -87,16 +87,18 @@ export function createRectangleInfluenceArea(
 
   const straightDistances: number[] = [0];
   const maxPadding = Math.max(paddingTop, paddingLeft, paddingRight, paddingBottom);
-  const tempX = potentialArea.invertScaleX(scaled.x + scaled.width / 2);
-  for (let i = 1; i < maxPadding; i++) {
-    const tempY = potentialArea.invertScaleY(scaled.y - i);
-    const distanceSq = rect.distSquare(tempX, tempY);
-    // only influence if less than r1
-    if (distanceSq < padding2) {
-      const dr = padding - Math.sqrt(distanceSq);
-      straightDistances.push(dr * dr);
-    } else {
-      break;
+  {
+    const tempX = potentialArea.invertScaleX(scaled.x + scaled.width / 2);
+    for (let i = 1; i < maxPadding; i++) {
+      const tempY = potentialArea.invertScaleY(scaled.y - i);
+      const distanceSq = rect.distSquare(tempX, tempY);
+      // only influence if less than r1
+      if (distanceSq < padding2) {
+        const dr = padding - Math.sqrt(distanceSq);
+        straightDistances.push(dr * dr);
+      } else {
+        break;
+      }
     }
   }
   const cornerDistances: number[][] = [];

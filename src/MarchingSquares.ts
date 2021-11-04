@@ -1,5 +1,5 @@
 import { PointList } from './model/PointList';
-import { Area } from './model/Area';
+import type { Area } from './model/Area';
 
 const N = 0;
 const S = 1;

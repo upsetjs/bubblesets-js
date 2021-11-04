@@ -219,8 +219,8 @@ function sortByDistanceToCentroid<T extends ICircle>(items: ReadonlyArray<T>) {
     .map((d) => d[0]);
 }
 
-function isPointInRectangles(point: IPoint, rects: ReadonlyArray<{ containsPt(x: number, y: number): boolean }>) {
-  return rects.some((r) => r.containsPt(point.x, point.y));
+function isPointInRectangles(p: IPoint, rects: ReadonlyArray<{ containsPt(x: number, y: number): boolean }>) {
+  return rects.some((r) => r.containsPt(p.x, p.y));
 }
 
 function pointExists(pointToCheck: IPoint, lines: ReadonlyArray<Line>) {
