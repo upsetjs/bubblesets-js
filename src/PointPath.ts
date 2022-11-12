@@ -1,10 +1,11 @@
 import { shapeSimplifier, bSplineShapeGenerator, samplePath } from './simplifiers';
 import { Line, boundingBox } from './model';
-import { IPoint, ICenterPoint } from './interfaces';
+import type { IPoint, ICenterPoint } from './interfaces';
 import { round } from './utils';
 
 export class PointPath {
   readonly points: ReadonlyArray<IPoint>;
+
   readonly closed: boolean;
 
   constructor(points: ReadonlyArray<IPoint> = [], closed = true) {
@@ -13,7 +14,7 @@ export class PointPath {
   }
 
   get(index: number): IPoint {
-    let i = index;
+    const i = index;
     const l = this.points.length;
     if (index < 0) {
       return this.closed ? this.get(index + l) : this.points[0];
@@ -117,6 +118,6 @@ export class PointPath {
       crossings++;
     }
 
-    return crossings % 2 == 1;
+    return crossings % 2 === 1;
   }
 }

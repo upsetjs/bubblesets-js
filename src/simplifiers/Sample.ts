@@ -1,5 +1,5 @@
 import { PointPath } from '../PointPath';
-import { IPoint } from '../interfaces';
+import type { IPoint } from '../interfaces';
 
 export function samplePath(skip = 8) {
   return (path: PointPath) => {

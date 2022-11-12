@@ -1,5 +1,5 @@
 import { linePtSegDistSq } from '../utils';
-import { ILine, IRectangle2 } from '../interfaces';
+import type { ILine, IRectangle2 } from '../interfaces';
 
 export function lineBoundingBox(line: ILine): IRectangle2 {
   const minX = Math.min(line.x1, line.x2);

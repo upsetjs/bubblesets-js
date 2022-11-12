@@ -1,9 +1,9 @@
-import { IRectangle } from './interfaces';
+import type { IRectangle } from './interfaces';
 
-export function addPadding(r: IRectangle, padding: number): IRectangle;
-export function addPadding(r: ReadonlyArray<IRectangle>, padding: number): ReadonlyArray<IRectangle>;
+export function addPadding(rect: IRectangle, padding: number): IRectangle;
+export function addPadding(rect: ReadonlyArray<IRectangle>, padding: number): ReadonlyArray<IRectangle>;
 export function addPadding(
-  r: IRectangle | ReadonlyArray<IRectangle>,
+  rect: IRectangle | ReadonlyArray<IRectangle>,
   padding: number
 ): IRectangle | ReadonlyArray<IRectangle> {
   const map = (r: IRectangle) => ({
@@ -12,8 +12,8 @@ export function addPadding(
     width: r.width + 2 * padding,
     height: r.height + 2 * padding,
   });
-  if (Array.isArray(r)) {
-    return r.map(map);
+  if (Array.isArray(rect)) {
+    return rect.map(map);
   }
-  return map(r as IRectangle);
+  return map(rect as IRectangle);
 }

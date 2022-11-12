@@ -1,10 +1,12 @@
 import { PointPath } from '../PointPath';
 import { Rectangle } from './Rectangle';
-import { IPoint } from '../interfaces';
+import type { IPoint } from '../interfaces';
 
 export class PointList {
   private count = 0;
+
   private readonly arr: IPoint[] = [];
+
   private readonly set = new Set<string>();
 
   constructor(size = 0) {

@@ -1,5 +1,5 @@
 import { Line } from './model/Line';
-import { IRectangle2, ILine, IRectangle } from './interfaces';
+import type { IRectangle2, ILine, IRectangle } from './interfaces';
 
 export enum EState {
   POINT = 1,
@@ -24,7 +24,7 @@ export function intersectLineLine(la: ILine, lb: ILine) {
     }
     return new Intersection(EState.NONE);
   }
-  return new Intersection(uaT == 0 || ubT == 0 ? EState.COINCIDENT : EState.PARALLEL);
+  return new Intersection(uaT === 0 || ubT === 0 ? EState.COINCIDENT : EState.PARALLEL);
 }
 
 export function fractionAlongLineA(la: ILine, lb: ILine) {
@@ -69,31 +69,31 @@ export function hasFractionToLineCenter(bounds: IRectangle2, line: ILine) {
   return countIntersections > 0;
 }
 
-export enum OUT_CODE {
+export enum OutCode {
   LEFT,
   TOP,
   RIGHT,
   BOTTOM,
 }
 
-export function outcode(bounds: IRectangle, px: number, py: number): Set<OUT_CODE> {
+export function outcode(bounds: IRectangle, px: number, py: number): Set<OutCode> {
   // taken from JDK 8 java.awt.geom.Rectangle2D.Double#outcode(double, double)
-  const out = new Set<OUT_CODE>();
+  const out = new Set<OutCode>();
   if (bounds.width <= 0) {
-    out.add(OUT_CODE.LEFT);
-    out.add(OUT_CODE.RIGHT);
+    out.add(OutCode.LEFT);
+    out.add(OutCode.RIGHT);
   } else if (px < bounds.x) {
-    out.add(OUT_CODE.LEFT);
+    out.add(OutCode.LEFT);
   } else if (px > bounds.x + bounds.width) {
-    out.add(OUT_CODE.RIGHT);
+    out.add(OutCode.RIGHT);
   }
   if (bounds.height <= 0) {
-    out.add(OUT_CODE.TOP);
-    out.add(OUT_CODE.BOTTOM);
+    out.add(OutCode.TOP);
+    out.add(OutCode.BOTTOM);
   } else if (py < bounds.y) {
-    out.add(OUT_CODE.TOP);
+    out.add(OutCode.TOP);
   } else if (py > bounds.y + bounds.height) {
-    out.add(OUT_CODE.BOTTOM);
+    out.add(OutCode.BOTTOM);
   }
   return out;
 }
@@ -101,8 +101,8 @@ export function outcode(bounds: IRectangle, px: number, py: number): Set<OUT_COD
 export function intersectsLine(bounds: IRectangle, line: ILine) {
   let x1 = line.x1;
   let y1 = line.y1;
-  let x2 = line.x2;
-  let y2 = line.y2;
+  const x2 = line.x2;
+  const y2 = line.y2;
   // taken from JDK 8 java.awt.geom.Rectangle2D.Double#intersectsLine(double, double, double, double)
   const out2 = Array.from(outcode(bounds, x2, y2));
   if (out2.length === 0) {
@@ -110,19 +110,21 @@ export function intersectsLine(bounds: IRectangle, line: ILine) {
   }
   let out1 = outcode(bounds, x1, y1);
   while (out1.size !== 0) {
-    if (out2.some((a) => out1.has(a))) {
-      return false;
+    for (const a of out2) {
+      if (out1.has(a)) {
+        return false;
+      }
     }
-    if (out1.has(OUT_CODE.RIGHT) || out1.has(OUT_CODE.LEFT)) {
+    if (out1.has(OutCode.RIGHT) || out1.has(OutCode.LEFT)) {
       let x = bounds.x;
-      if (out1.has(OUT_CODE.RIGHT)) {
+      if (out1.has(OutCode.RIGHT)) {
         x += bounds.width;
       }
       y1 = y1 + ((x - x1) * (y2 - y1)) / (x2 - x1);
       x1 = x;
     } else {
       let y = bounds.y;
-      if (out1.has(OUT_CODE.BOTTOM)) {
+      if (out1.has(OutCode.BOTTOM)) {
         y += bounds.height;
       }
       x1 = x1 + ((y - y1) * (x2 - x1)) / (y2 - y1);
@@ -163,7 +165,7 @@ export function fractionToLineCenter(bounds: IRectangle2, line: ILine) {
   // right
   testLine(bounds.x2, bounds.y, bounds.x2, bounds.y2);
   // if no intersection, return -1
-  if (countIntersections == 0) {
+  if (countIntersections === 0) {
     return -1;
   }
   return minDistance;
@@ -198,7 +200,7 @@ export function fractionToLineEnd(bounds: IRectangle2, line: ILine) {
   // right
   testLine(bounds.x2, bounds.y, bounds.x2, bounds.y2);
   // if no intersection, return -1
-  if (countIntersections == 0) {
+  if (countIntersections === 0) {
     return -1;
   }
   return minDistance;

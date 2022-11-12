@@ -1,6 +1,6 @@
 import { PointPath } from '../PointPath';
 import { linePtSegDistSq } from '../utils';
-import { IPoint } from '../interfaces';
+import type { IPoint } from '../interfaces';
 
 function canTakeNext(path: PointPath, start: number, end: number, toleranceSquared: number) {
   const validEnd = path.closed ? end < path.length : end < path.length - 1;

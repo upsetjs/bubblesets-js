@@ -1,16 +1,17 @@
-import { IRectangle, IPoint } from '../interfaces';
+import type { IRectangle, IPoint } from '../interfaces';
 import { Rectangle } from './Rectangle';
 
 export class Area {
   private readonly area: Float32Array;
+
   constructor(
     public readonly pixelGroup: number,
     public readonly i = 0,
     public readonly j = 0,
     public readonly pixelX = 0,
     public readonly pixelY = 0,
-    public readonly width: number,
-    public readonly height: number,
+    public readonly width: number = 10,
+    public readonly height: number = 10,
     pixels = new Float32Array(Math.max(0, width * height)).fill(0)
   ) {
     this.area = pixels;
@@ -68,6 +69,7 @@ export class Area {
   scaleX(pixel: number) {
     return this.boundX(Math.floor((pixel - this.pixelX) / this.pixelGroup));
   }
+
   scaleY(pixel: number) {
     return this.boundY(Math.floor((pixel - this.pixelY) / this.pixelGroup));
   }
@@ -85,6 +87,7 @@ export class Area {
   invertScaleX(v: number) {
     return Math.round(v * this.pixelGroup + this.pixelX);
   }
+
   invertScaleY(v: number) {
     return Math.round(v * this.pixelGroup + this.pixelY);
   }
@@ -169,8 +172,8 @@ export class Area {
 
   fillVerticalLine(i: number, j: number, height: number, value: number) {
     const offset = i + j * this.width;
-    for (let i = 0; i < height; i++) {
-      this.area[offset + i * this.width] = value;
+    for (let k = 0; k < height; k++) {
+      this.area[offset + k * this.width] = value;
     }
   }
 

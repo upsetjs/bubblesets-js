@@ -1,6 +1,6 @@
-import { IPoint, IRectangle, IRectangle2, ICircle } from '../interfaces';
+import type { IPoint, IRectangle, IRectangle2, ICircle } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
-import { outcode, OUT_CODE } from '../Intersection';
+import { outcode, OutCode } from '../Intersection';
 
 export class Rectangle implements IRectangle2, ICircle {
   constructor(public x: number, public y: number, public width: number, public height: number) {}
@@ -16,6 +16,7 @@ export class Rectangle implements IRectangle2, ICircle {
   get cx() {
     return this.x + this.width / 2;
   }
+
   get cy() {
     return this.y + this.height / 2;
   }
@@ -89,13 +90,13 @@ export class Rectangle implements IRectangle2, ICircle {
     // which edge of rectangle is closest
     const code = outcode(this, tempX, tempY);
     // top
-    if (code.has(OUT_CODE.TOP)) {
+    if (code.has(OutCode.TOP)) {
       // and left
-      if (code.has(OUT_CODE.LEFT)) {
+      if (code.has(OutCode.LEFT)) {
         // linear distance from upper left corner
         return ptsDistanceSq(tempX, tempY, this.x, this.y);
       }
-      if (code.has(OUT_CODE.RIGHT)) {
+      if (code.has(OutCode.RIGHT)) {
         // and right
         // linear distance from upper right corner
         return ptsDistanceSq(tempX, tempY, this.x2, this.y);
@@ -104,14 +105,14 @@ export class Rectangle implements IRectangle2, ICircle {
       return (this.y - tempY) * (this.y - tempY);
     }
     // bottom
-    if (code.has(OUT_CODE.BOTTOM)) {
+    if (code.has(OutCode.BOTTOM)) {
       // and left
-      if (code.has(OUT_CODE.LEFT)) {
+      if (code.has(OutCode.LEFT)) {
         // linear distance from lower left corner
         return ptsDistanceSq(tempX, tempY, this.x, this.y2);
       }
       // and right
-      if (code.has(OUT_CODE.RIGHT)) {
+      if (code.has(OutCode.RIGHT)) {
         // linear distance from lower right corner
         return ptsDistanceSq(tempX, tempY, this.x2, this.y2);
       }
@@ -119,12 +120,12 @@ export class Rectangle implements IRectangle2, ICircle {
       return (tempY - this.y2) * (tempY - this.y2);
     }
     // left only
-    if (code.has(OUT_CODE.LEFT)) {
+    if (code.has(OutCode.LEFT)) {
       // linear distance from left edge
       return (this.x - tempX) * (this.x - tempX);
     }
     // right only
-    if (code.has(OUT_CODE.RIGHT)) {
+    if (code.has(OutCode.RIGHT)) {
       // linear distance from right edge
       return (tempX - this.x2) * (tempX - this.x2);
     }
