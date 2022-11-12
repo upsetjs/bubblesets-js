@@ -10,8 +10,8 @@ export class Area {
     public readonly j = 0,
     public readonly pixelX = 0,
     public readonly pixelY = 0,
-    public readonly width: number,
-    public readonly height: number,
+    public readonly width: number = 10,
+    public readonly height: number = 10,
     pixels = new Float32Array(Math.max(0, width * height)).fill(0)
   ) {
     this.area = pixels;
