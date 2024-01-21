@@ -3,7 +3,12 @@ import { ptsDistanceSq } from '../utils';
 import { outcode, OutCode } from '../Intersection';
 
 export class Rectangle implements IRectangle2, ICircle {
-  constructor(public x: number, public y: number, public width: number, public height: number) {}
+  constructor(
+    public x: number,
+    public y: number,
+    public width: number,
+    public height: number
+  ) {}
 
   get x2() {
     return this.x + this.width;
