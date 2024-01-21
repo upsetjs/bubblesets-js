@@ -8,7 +8,7 @@ import {
 } from './Intersection';
 import { Line } from './model/Line';
 import { doublePointsEqual, ptsDistanceSq } from './utils';
-import { IPoint, point, ICircle, IRectangle2 } from './interfaces';
+import { type IPoint, point, type ICircle, type IRectangle2 } from './interfaces';
 
 export function calculateVirtualEdges(
   items: ReadonlyArray<ICircle>,
@@ -176,24 +176,27 @@ function calculateClosestNeighbor(
   nonMembers: ReadonlyArray<IRectangle2>
 ) {
   let minLengthSq = Number.POSITIVE_INFINITY;
-  return visited.reduce((closestNeighbor, neighborItem) => {
-    const distanceSq = ptsDistanceSq(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
-    if (distanceSq > minLengthSq) {
-      // the interference can only increase the distance so if already bigger, return
+  return visited.reduce(
+    (closestNeighbor, neighborItem) => {
+      const distanceSq = ptsDistanceSq(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
+      if (distanceSq > minLengthSq) {
+        // the interference can only increase the distance so if already bigger, return
+        return closestNeighbor;
+      }
+
+      const directLine = new Line(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
+      // augment distance by number of interfering items
+      const numberInterferenceItems = itemsCuttingLine(nonMembers, directLine);
+
+      // TODO is there a better function to consider interference in nearest-neighbor checking? This is hacky
+      if (distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1) < minLengthSq) {
+        closestNeighbor = neighborItem;
+        minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
+      }
       return closestNeighbor;
-    }
-
-    const directLine = new Line(itemCenter.x, itemCenter.y, neighborItem.cx, neighborItem.cy);
-    // augment distance by number of interfering items
-    const numberInterferenceItems = itemsCuttingLine(nonMembers, directLine);
-
-    // TODO is there a better function to consider interference in nearest-neighbor checking? This is hacky
-    if (distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1) < minLengthSq) {
-      closestNeighbor = neighborItem;
-      minLengthSq = distanceSq * (numberInterferenceItems + 1) * (numberInterferenceItems + 1);
-    }
-    return closestNeighbor;
-  }, null as ICircle | null);
+    },
+    null as ICircle | null
+  );
 }
 
 function sortByDistanceToCentroid<T extends ICircle>(items: ReadonlyArray<T>) {
