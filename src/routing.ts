@@ -8,7 +8,7 @@ import {
 } from './Intersection';
 import { Line } from './model/Line';
 import { doublePointsEqual, ptsDistanceSq } from './utils';
-import { IPoint, point, ICircle, IRectangle2 } from './interfaces';
+import { type IPoint, point, type ICircle, type IRectangle2 } from './interfaces';
 
 export function calculateVirtualEdges(
   items: ReadonlyArray<ICircle>,
