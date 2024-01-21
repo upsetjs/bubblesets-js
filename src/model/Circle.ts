@@ -2,7 +2,11 @@ import type { ICircle, IRectangle2 } from '../interfaces';
 import { ptsDistanceSq } from '../utils';
 
 export class Circle implements IRectangle2, ICircle {
-  constructor(public cx: number, public cy: number, public radius: number) {}
+  constructor(
+    public cx: number,
+    public cy: number,
+    public radius: number
+  ) {}
 
   get x() {
     return this.cx - this.radius;

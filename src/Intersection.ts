@@ -9,7 +9,11 @@ export enum EState {
 }
 
 export class Intersection {
-  constructor(public readonly state: EState, public readonly x = 0, public readonly y = 0) {}
+  constructor(
+    public readonly state: EState,
+    public readonly x = 0,
+    public readonly y = 0
+  ) {}
 }
 
 export function intersectLineLine(la: ILine, lb: ILine) {
