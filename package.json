@@ -1,7 +1,7 @@
 {
   "name": "bubblesets-js",
   "description": "JavaScript implementation of bubble sets by Christopher Collins",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "author": {
     "name": "Samuel Gratzl",
     "email": "sam@sgratzl.com",
