@@ -316,7 +316,7 @@ function rerouteLine(
     }
     // else through top to bottom, calculate areas
     const totalArea = item.height * item.width;
-    const leftArea = item.height * ((topIntersect.x - item.x + (rightIntersect.x - item.x)) * 0.5);
+    const leftArea = item.height * ((topIntersect.x - item.x + (bottomIntersect.x - item.x)) * 0.5);
     if (leftArea < totalArea * 0.5) {
       // go around left
       if (topIntersect.x > bottomIntersect.x)
@@ -368,7 +368,7 @@ function rerouteLine(
   }
   // else through top to bottom, calculate areas
   const totalArea = item.height * item.width;
-  const leftArea = item.height * ((topIntersect.x - item.x + (rightIntersect.x - item.x)) * 0.5);
+  const leftArea = item.height * ((topIntersect.x - item.x + (bottomIntersect.x - item.x)) * 0.5);
   if (leftArea < totalArea * 0.5) {
     // go around right
     if (topIntersect.x > bottomIntersect.x)
