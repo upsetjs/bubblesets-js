@@ -11,32 +11,55 @@ import { PointPath } from './PointPath';
 
 export interface IPotentialOptions {
   /**
-   * how many pixels per potential area group to improve speed
+   * the resolution of the algorithm in square pixels
    * @default 4
    */
   pixelGroup?: number;
+  /**
+   * the amount of space to move the virtual edge when wrapping around obstacles
+   * @default 10
+   */
   morphBuffer?: number;
 }
 
 export interface IRoutingOptions {
   virtualEdges?: boolean;
   /**
-   * maximum number of iterations when computing routes between members
+   *  number of times to run the algorithm to refine the path finding in difficult areas
    * @default 100
    */
   maxRoutingIterations?: number;
+  /**
+   * the amount of space to move the virtual edge when wrapping around obstacles
+   * @default 10
+   */
   morphBuffer?: number;
 }
 export interface IOutlineOptions {
   /**
-   * maximum number of iterations when computing the contour
+   * number of times to refine the boundary
    * @default 20
    */
   maxMarchingIterations?: number;
-
+  /**
+   * the distance from edges at which energy is 1 (full influence)
+   * @default 10
+   */
   edgeR0?: number;
+  /**
+   * the distance from edges at which energy is 0 (no influence)
+   * @default 20
+   */
   edgeR1?: number;
+  /**
+   * the distance from nodes which energy is 1 (full influence)
+   * @default 15
+   */
   nodeR0?: number;
+  /**
+   * the distance from nodes at which energy is 0 (no influence)
+   * @default 50
+   */
   nodeR1?: number;
 
   threshold?: number;
@@ -48,14 +71,15 @@ export interface IOutlineOptions {
 export interface IBubbleSetOptions extends IRoutingOptions, IOutlineOptions, IPotentialOptions {}
 
 export const defaultOptions: Readonly<Required<IBubbleSetOptions>> = {
-  maxRoutingIterations: 100,
-  maxMarchingIterations: 20,
-  pixelGroup: 4,
-  edgeR0: 10,
-  edgeR1: 20,
-  nodeR0: 15,
-  nodeR1: 50,
-  morphBuffer: 10,
+  // override these defaults to change the spacing and bubble precision; affects performance and appearance
+  maxRoutingIterations: 100, // number of times to run the algorithm to refine the path finding in difficult areas
+  maxMarchingIterations: 20, // number of times to refine the boundary
+  pixelGroup: 4, // the resolution of the algorithm in square pixels
+  edgeR0: 10, // the distance from edges at which energy is 1 (full influence)
+  edgeR1: 20, // the distance from edges at which energy is 0 (no influence)
+  nodeR0: 15, // the distance from nodes which energy is 1 (full influence)
+  nodeR1: 50, // the distance from nodes at which energy is 0 (no influence)
+  morphBuffer: 10, // the amount of space to move the virtual edge when wrapping around obstacles
 
   threshold: 1,
   memberInfluenceFactor: 1,
